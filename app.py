@@ -86,7 +86,7 @@ df = pd.DataFrame({
         "Inclusivity",
         "Assessment"
     ],
-    "Alignment (%)": percentages
+    "Alignment (%)": locals().get('percentages', [0, 0, 0, 0, 0])
 })
 
 st.subheader("Dimension-wise Alignment Visualization")
