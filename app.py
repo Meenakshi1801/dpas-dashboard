@@ -115,7 +115,7 @@ fig = go.Figure(go.Indicator(
 ))
 
 st.plotly_chart(fig)
-if pas_score < 50:
+if locals().get('pas_score', 0) < 50:
     st.error("Low Alignment: Lesson components require stronger pedagogical alignment.")
 elif pas_score < 75:
     st.warning("Moderate Alignment: Some instructional elements can be improved.")
