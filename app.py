@@ -1,7 +1,6 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 # -------- PAGE CONFIGURATION & HEADER --------
@@ -50,7 +49,6 @@ assessment = st.selectbox("Assessment Type",
 st.markdown("---")
 
 # -------- CALCULATION & VISUALIZATION --------
-# Everything below this is indented so it only runs AFTER the button is clicked!
 if st.button("Calculate Pedagogical Alignment Score (PAS)"):
 
     # 1. Calculate Scores
@@ -77,23 +75,32 @@ if st.button("Calculate Pedagogical Alignment Score (PAS)"):
     st.write("Pedagogical Alignment Score (PAS):", round(pas,2))
     st.write("Alignment Category:", category)
 
-    # 3. Matplotlib Bar Chart
-    df = pd.DataFrame({
-        "Dimension": ["Cognitive", "Strategy", "Engagement", "Inclusivity", "Assessment"],
-        "Alignment (%)": percentages
-    })
-# ... (previous code) ...
-    # 6. Final Streamlit Bar Chart (Raw Scores)
-    components = {
-        "Cognitive Level": cognitive[1],
-        "Pedagogical Strategy": strategy[1],
-        "Learner Engagement": engagement[1],
-        "Inclusivity": inclusivity[1],
-        "Assessment": assessment[1]
-    }
-    st.bar_chart(components)
+    # 3. Plotly Gauge Chart
+    fig_gauge = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=pas,
+        title={'text': "Pedagogical Alignment Score (PAS)"},
+        gauge={
+            'axis': {'range': [0, 100]},
+            'bar': {'color': "green"},
+            'steps': [
+                {'range': [0, 49], 'color': "lightcoral"},
+                {'range': [50, 74], 'color': "khaki"},
+                {'range': [75, 100], 'color': "lightgreen"}
+            ]
+        }
+    ))
+    st.plotly_chart(fig_gauge)
 
-    # --- ADD THE NEW DOWNLOAD CODE HERE ---
+    # 4. Feedback Messages
+    if pas < 50:
+        st.error("Low Alignment: Lesson components require stronger pedagogical alignment.")
+    elif pas < 75:
+        st.warning("Moderate Alignment: Some instructional elements can be improved.")
+    else:
+        st.success("High Alignment: Lesson design demonstrates strong pedagogical alignment.")
+
+    # 5. Download Report Feature
     st.markdown("---")
     st.subheader("Export Results")
     
@@ -116,44 +123,3 @@ if st.button("Calculate Pedagogical Alignment Score (PAS)"):
         file_name="PAS_Lesson_Plan_Report.csv",
         mime="text/csv",
     )
-    st.subheader("Dimension-wise Alignment Visualization")
-    fig, ax = plt.subplots()
-    ax.bar(df["Dimension"], df["Alignment (%)"])
-    ax.set_ylabel("Alignment (%)")
-    ax.set_ylim(0,100)
-    st.pyplot(fig)
-
-    # 4. Plotly Gauge Chart
-    fig_gauge = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=pas,
-        title={'text': "Pedagogical Alignment Score (PAS)"},
-        gauge={
-            'axis': {'range': [0, 100]},
-            'bar': {'color': "green"},
-            'steps': [
-                {'range': [0, 49], 'color': "lightcoral"},
-                {'range': [50, 74], 'color': "khaki"},
-                {'range': [75, 100], 'color': "lightgreen"}
-            ]
-        }
-    ))
-    st.plotly_chart(fig_gauge)
-
-    # 5. Feedback Messages
-    if pas < 50:
-        st.error("Low Alignment: Lesson components require stronger pedagogical alignment.")
-    elif pas < 75:
-        st.warning("Moderate Alignment: Some instructional elements can be improved.")
-    else:
-        st.success("High Alignment: Lesson design demonstrates strong pedagogical alignment.")
-
-    # 6. Final Streamlit Bar Chart (Raw Scores)
-    components = {
-        "Cognitive Level": cognitive[1],
-        "Pedagogical Strategy": strategy[1],
-        "Learner Engagement": engagement[1],
-        "Inclusivity": inclusivity[1],
-        "Assessment": assessment[1]
-    }
-    st.bar_chart(components)
