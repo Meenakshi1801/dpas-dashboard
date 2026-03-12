@@ -97,3 +97,36 @@ ax.set_ylabel("Alignment (%)")
 ax.set_ylim(0,100)
 
 st.pyplot(fig)
+import plotly.graph_objects as go
+
+fig = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=pas_score,
+    title={'text': "Pedagogical Alignment Score (PAS)"},
+    gauge={
+        'axis': {'range': [0, 100]},
+        'bar': {'color': "green"},
+        'steps': [
+            {'range': [0, 49], 'color': "lightcoral"},
+            {'range': [50, 74], 'color': "khaki"},
+            {'range': [75, 100], 'color': "lightgreen"}
+        ]
+    }
+))
+
+st.plotly_chart(fig)
+if pas_score < 50:
+    st.error("Low Alignment: Lesson components require stronger pedagogical alignment.")
+elif pas_score < 75:
+    st.warning("Moderate Alignment: Some instructional elements can be improved.")
+else:
+    st.success("High Alignment: Lesson design demonstrates strong pedagogical alignment.")
+    components = {
+    "Cognitive Level": cognitive,
+    "Pedagogical Strategy": strategy,
+    "Learner Engagement": engagement,
+    "Inclusivity": inclusivity,
+    "Assessment": assessment
+}
+
+st.bar_chart(components)
