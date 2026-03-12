@@ -82,7 +82,40 @@ if st.button("Calculate Pedagogical Alignment Score (PAS)"):
         "Dimension": ["Cognitive", "Strategy", "Engagement", "Inclusivity", "Assessment"],
         "Alignment (%)": percentages
     })
+# ... (previous code) ...
+    # 6. Final Streamlit Bar Chart (Raw Scores)
+    components = {
+        "Cognitive Level": cognitive[1],
+        "Pedagogical Strategy": strategy[1],
+        "Learner Engagement": engagement[1],
+        "Inclusivity": inclusivity[1],
+        "Assessment": assessment[1]
+    }
+    st.bar_chart(components)
 
+    # --- ADD THE NEW DOWNLOAD CODE HERE ---
+    st.markdown("---")
+    st.subheader("Export Results")
+    
+    report_data = {
+        "Cognitive Level": [cognitive[0]],
+        "Pedagogical Strategy": [strategy[0]],
+        "Learner Engagement": [engagement[0]],
+        "Inclusivity": [inclusivity[0]],
+        "Assessment Type": [assessment[0]],
+        "PAS Score": [round(pas, 2)],
+        "Alignment Category": [category]
+    }
+    
+    report_df = pd.DataFrame(report_data)
+    csv = report_df.to_csv(index=False).encode('utf-8')
+    
+    st.download_button(
+        label="📥 Download PAS Report (CSV)",
+        data=csv,
+        file_name="PAS_Lesson_Plan_Report.csv",
+        mime="text/csv",
+    )
     st.subheader("Dimension-wise Alignment Visualization")
     fig, ax = plt.subplots()
     ax.bar(df["Dimension"], df["Alignment (%)"])
