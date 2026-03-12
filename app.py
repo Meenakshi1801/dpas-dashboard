@@ -6,6 +6,22 @@ st.set_page_config(page_title="DPAS", layout="centered")
 st.title("DILP-LA Pedagogical Analytics System (DPAS)")
 st.write("Data-Informed Lesson Planning Dashboard")
 
+st.markdown("### About This Application")
+
+st.write("""
+**DILP-LA Pedagogical Analytics System (DPAS)**  
+Developed to support data-informed lesson planning and pedagogical alignment analysis.
+""")
+
+st.markdown("""
+**Developer:**  
+Dr. Meenakshi Dwivedi  
+Assistant Professor, School of Education  
+Mahatma Jyotiba Phule Rohilkhand University  
+Bareilly, Uttar Pradesh, India
+""")
+
+st.markdown("---")
 st.markdown("---")
 
 # -------- INPUT SECTION --------
@@ -58,3 +74,26 @@ if st.button("Calculate Pedagogical Alignment Score (PAS)"):
     st.subheader("Results")
     st.write("Pedagogical Alignment Score (PAS):", round(pas,2))
     st.write("Alignment Category:", category)
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Create DataFrame
+df = pd.DataFrame({
+    "Dimension": [
+        "Cognitive",
+        "Strategy",
+        "Engagement",
+        "Inclusivity",
+        "Assessment"
+    ],
+    "Alignment (%)": percentages
+})
+
+st.subheader("Dimension-wise Alignment Visualization")
+
+fig, ax = plt.subplots()
+ax.bar(df["Dimension"], df["Alignment (%)"])
+ax.set_ylabel("Alignment (%)")
+ax.set_ylim(0,100)
+
+st.pyplot(fig)
