@@ -101,7 +101,7 @@ import plotly.graph_objects as go
 
 fig = go.Figure(go.Indicator(
     mode="gauge+number",
-    value=pas_score= PAS,
+    value=pas_score= 0,
     title={'text': "Pedagogical Alignment Score (PAS)"},
     gauge={
         'axis': {'range': [0, 100]},
