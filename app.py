@@ -110,6 +110,8 @@ def clear_lesson_state():
         "strategy_rationale", "strategy_alignment",
         "engagement_rationale", "engagement_alignment",
         "inclusion_alignment", "assessment_rationale", "assessment_alignment",
+        "procedure_introduction", "procedure_development", "procedure_activity",
+        "procedure_assessment", "procedure_closure",
         "reflection", "revision_note", "selected_teacher_id",
     ]
     for key in keys:
@@ -378,6 +380,70 @@ def save_design_decisions():
         return True
     except Exception as e:
         st.error(f"Could not save Design Decisions: {e}")
+        return False
+
+
+def load_lesson_procedure():
+    lesson_id = st.session_state.get("lesson_id")
+    if not lesson_id or not supabase:
+        return
+    if any(st.session_state.get(k) for k in [
+        "procedure_introduction", "procedure_development", "procedure_activity",
+        "procedure_assessment", "procedure_closure"
+    ]):
+        return
+    try:
+        result = supabase.table("lesson_procedures").select("*").eq(
+            "lesson_id", lesson_id
+        ).limit(1).execute()
+        if not result.data:
+            return
+        row = result.data[0]
+        mapping = {
+            "procedure_introduction": row.get("introduction", ""),
+            "procedure_development": row.get("concept_development", ""),
+            "procedure_activity": row.get("learning_activity", ""),
+            "procedure_assessment": row.get("assessment_during_lesson", ""),
+            "procedure_closure": row.get("closure_consolidation", ""),
+        }
+        for key, value in mapping.items():
+            if value not in (None, ""):
+                st.session_state[key] = value
+    except Exception:
+        pass
+
+
+def save_lesson_procedure():
+    if not supabase or not st.session_state.get("lesson_id"):
+        st.error("Save Lesson Context first.")
+        return False
+
+    payload = {
+        "lesson_id": st.session_state["lesson_id"],
+        "introduction": st.session_state.get("procedure_introduction", ""),
+        "concept_development": st.session_state.get("procedure_development", ""),
+        "learning_activity": st.session_state.get("procedure_activity", ""),
+        "assessment_during_lesson": st.session_state.get("procedure_assessment", ""),
+        "closure_consolidation": st.session_state.get("procedure_closure", ""),
+    }
+
+    if not any(str(v).strip() for k, v in payload.items() if k != "lesson_id"):
+        st.error("Please enter at least one part of the lesson procedure.")
+        return False
+
+    try:
+        existing = supabase.table("lesson_procedures").select("id").eq(
+            "lesson_id", st.session_state["lesson_id"]
+        ).limit(1).execute()
+        if existing.data:
+            supabase.table("lesson_procedures").update(payload).eq(
+                "id", existing.data[0]["id"]
+            ).execute()
+        else:
+            supabase.table("lesson_procedures").insert(payload).execute()
+        return True
+    except Exception as e:
+        st.error(f"Could not save Lesson Procedure: {e}")
         return False
 
 
@@ -693,11 +759,12 @@ with st.sidebar:
                     "1 · About DPAS",
                     "2 · Lesson Context",
                     "3 · Design Decisions",
-                    "4 · Alignment Evidence & Submit",
-                    "5 · Analytics",
-                    "6 · Educator Feedback",
-                    "7 · Reflect & Revise",
-                    "8 · Report",
+                    "4 · Lesson Procedure",
+                    "5 · Alignment Evidence & Submit",
+                    "6 · Analytics",
+                    "7 · Educator Feedback",
+                    "8 · Reflect & Revise",
+                    "9 · Report",
                 ],
                 label_visibility="collapsed",
             )
@@ -784,6 +851,7 @@ if active_role == "teacher_educator":
             )
             lesson = next(r for r in inbox if r["id"] == lesson_id)
             design = fetch_one("design_decisions", lesson_id)
+            procedure = fetch_one("lesson_procedures", lesson_id)
             evidence = fetch_one("alignment_evidence", lesson_id)
 
             st.markdown("### Lesson submitted for review")
@@ -799,8 +867,18 @@ if active_role == "teacher_educator":
                 st.write("**Strategy:**", design.get("strategy", ""))
                 st.write("**Assessment:**", design.get("assessment", ""))
 
+            st.markdown("### Lesson Procedure")
+            if procedure:
+                st.write("**Introduction / Set Induction:**", procedure.get("introduction", ""))
+                st.write("**Concept Development / Teacher–Learner Interaction:**", procedure.get("concept_development", ""))
+                st.write("**Learning Activity / Practice:**", procedure.get("learning_activity", ""))
+                st.write("**Assessment During the Lesson:**", procedure.get("assessment_during_lesson", ""))
+                st.write("**Closure / Consolidation:**", procedure.get("closure_consolidation", ""))
+            else:
+                st.caption("No lesson procedure was saved for this submission.")
+
             st.info(
-                "For independent verification, review the student's lesson decisions and written rationales first. "
+                "For independent verification, review the student's lesson decisions, lesson procedure, and written rationales first. "
                 "The student's own alignment selections are not displayed on this screen."
             )
 
@@ -835,7 +913,7 @@ if page.startswith("1"):
 
 elif page.startswith("2"):
     section_header(
-        "STEP 2 OF 8",
+        "STEP 2 OF 9",
         "Lesson Context",
         "Define the lesson before making pedagogical decisions.",
     )
@@ -861,7 +939,7 @@ elif page.startswith("3"):
         if key not in st.session_state and saved_key in st.session_state:
             st.session_state[key] = st.session_state[saved_key]
     section_header(
-        "STEP 3 OF 8",
+        "STEP 3 OF 9",
         "Design Decisions",
         "Choose the options you currently consider appropriate. No option is treated as universally superior.",
     )
@@ -889,9 +967,45 @@ elif page.startswith("3"):
         st.session_state["inclusion_support"] = ""
     if st.button("💾 Save Design Decisions", type="primary", use_container_width=True):
         if save_design_decisions():
-            st.success("Design Decisions saved. Continue to Alignment Evidence.")
+            st.success("Design Decisions saved. Continue to Lesson Procedure.")
 
 elif page.startswith("4"):
+    load_lesson_procedure()
+    section_header(
+        "STEP 4 OF 9",
+        "Lesson Procedure",
+        "Describe how the lesson will unfold in the classroom. This gives the teacher educator concrete evidence of how your design decisions will be enacted.",
+    )
+    st.text_area(
+        "Introduction / Set Induction",
+        key="procedure_introduction",
+        placeholder="How will you introduce the topic, activate prior knowledge, or gain learners' attention?",
+    )
+    st.text_area(
+        "Concept Development / Teacher–Learner Interaction",
+        key="procedure_development",
+        placeholder="Describe the main teaching-learning sequence, explanations, examples, questions, and interaction.",
+    )
+    st.text_area(
+        "Learning Activity / Practice",
+        key="procedure_activity",
+        placeholder="Describe what learners will do individually, in pairs, groups, or as a class.",
+    )
+    st.text_area(
+        "Assessment During the Lesson",
+        key="procedure_assessment",
+        placeholder="Describe the evidence of learning you will gather during the lesson.",
+    )
+    st.text_area(
+        "Closure / Consolidation",
+        key="procedure_closure",
+        placeholder="How will the lesson be summarized, consolidated, or brought to closure?",
+    )
+    if st.button("💾 Save Lesson Procedure", type="primary", use_container_width=True):
+        if save_lesson_procedure():
+            st.success("Lesson Procedure saved. Continue to Alignment Evidence & Submit.")
+
+elif page.startswith("5"):
     hydrate_saved_lesson()
     if "inclusion_needed" not in st.session_state and "saved_inclusion_needed" in st.session_state:
         st.session_state["inclusion_needed"] = st.session_state["saved_inclusion_needed"]
@@ -899,9 +1013,10 @@ elif page.startswith("4"):
         saved_key = f"saved_{key}"
         if key not in st.session_state and saved_key in st.session_state:
             st.session_state[key] = st.session_state[saved_key]
+    load_lesson_procedure()
     load_alignment_draft()
     section_header(
-        "STEP 4 OF 8",
+        "STEP 5 OF 9",
         "Alignment Evidence & Submit",
         "Justify each pedagogical decision, then choose the teacher educator or supervisor who should review this lesson.",
     )
@@ -965,9 +1080,9 @@ elif page.startswith("4"):
             if submit_self_analysis(selected_teacher):
                 st.success("Submitted successfully. This lesson now appears in your selected teacher educator's DPAS inbox.")
 
-elif page.startswith("5"):
+elif page.startswith("6"):
     section_header(
-        "STEP 5 OF 8",
+        "STEP 6 OF 9",
         "Pedagogical Analytics",
         "Review the coherence of your lesson design.",
     )
@@ -991,9 +1106,9 @@ elif page.startswith("5"):
             "a particular teaching strategy, a particular engagement mode, more adaptations, or a particular assessment type."
         )
 
-elif page.startswith("6"):
+elif page.startswith("7"):
     section_header(
-        "STEP 6 OF 8",
+        "STEP 7 OF 9",
         "Educator Feedback",
         "Feedback appears here after your selected teacher educator completes verification.",
     )
@@ -1019,9 +1134,9 @@ elif page.startswith("6"):
                     st.write("**Teacher-educator verification:**", judgment or "—")
                     st.write("**Comment:**", comment or "—")
 
-elif page.startswith("7"):
+elif page.startswith("8"):
     section_header(
-        "STEP 7 OF 8",
+        "STEP 8 OF 9",
         "Reflect & Revise",
         "Use the analytics and teacher-educator feedback to reconsider your lesson design.",
     )
@@ -1034,11 +1149,12 @@ elif page.startswith("7"):
         if save_revision():
             st.success("Reflection and revision saved.")
 
-elif page.startswith("8"):
+elif page.startswith("9"):
+    load_lesson_procedure()
     section_header(
-        "STEP 8 OF 8",
+        "STEP 9 OF 9",
         "Final Report",
-        "Export a transparent record of lesson context, decisions, alignment judgments, verification, and reflection.",
+        "Export a transparent record of lesson context, procedure, decisions, alignment judgments, verification, and reflection.",
     )
     if not st.session_state.get("lesson_id"):
         st.info("Complete and save a lesson first.")
@@ -1054,6 +1170,11 @@ elif page.startswith("8"):
             "Pedagogical Strategy": st.session_state.get("strategy", ""),
             "Learner Engagement": st.session_state.get("engagement", ""),
             "Assessment Type": st.session_state.get("assessment", ""),
+            "Introduction / Set Induction": st.session_state.get("procedure_introduction", ""),
+            "Concept Development": st.session_state.get("procedure_development", ""),
+            "Learning Activity / Practice": st.session_state.get("procedure_activity", ""),
+            "Assessment During Lesson": st.session_state.get("procedure_assessment", ""),
+            "Closure / Consolidation": st.session_state.get("procedure_closure", ""),
             "PAS Score (V2)": round(pas, 2),
             "Alignment Category": category,
             "Reflection": st.session_state.get("reflection", ""),
