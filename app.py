@@ -1,590 +1,395 @@
 from pathlib import Path
-
-import streamlit as st
-import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
+import streamlit as st
 
-
-# -------- PAGE CONFIGURATION --------
 st.set_page_config(
-    page_title="DPAS",
+    page_title="DPAS V2",
     page_icon="📊",
-    layout="centered"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
+# ---------- STYLE ----------
+st.markdown("""
+<style>
+.block-container {padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1250px;}
+[data-testid="stSidebar"] {min-width: 290px; max-width: 290px;}
+.dpas-card {
+    border: 1px solid rgba(120,120,120,.22);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    margin-bottom: .8rem;
+}
+.dpas-kicker {font-size:.82rem; opacity:.68; margin-bottom:.15rem;}
+.dpas-title {font-size:1.1rem; font-weight:650; margin-bottom:.25rem;}
+.small-note {font-size:.88rem; opacity:.72;}
+</style>
+""", unsafe_allow_html=True)
 
-# -------- HEADER --------
-st.title("DILP-LA Pedagogical Analytics System (DPAS)")
-st.write("Data-Informed Lesson Planning Dashboard")
+# ---------- CONSTANTS ----------
+COGNITIVE = [
+    "C1 - Remember", "C2 - Understand", "C3 - Apply",
+    "C4 - Analyze", "C5 - Evaluate", "C6 - Create"
+]
+STRATEGIES = [
+    "PS1 - Lecture", "PS2 - Discussion", "PS3 - Activity-Based",
+    "PS4 - Inquiry-Based", "PS5 - Experiential/Problem-Based"
+]
+ENGAGEMENT = ["L1 - Individual", "L2 - Pair", "L3 - Group", "L4 - Whole Class"]
+ASSESSMENTS = ["A1 - Formative", "A2 - Summative", "A3 - Peer Assessment", "A4 - Self-Assessment"]
+LESSON_PURPOSES = [
+    "Introduce a new concept", "Develop conceptual understanding",
+    "Practice / application", "Inquiry / problem solving",
+    "Revision / consolidation", "Assessment / diagnosis", "Other"
+]
+ALIGNMENT_OPTIONS = [
+    "Aligned",
+    "Partially aligned",
+    "Review needed"
+]
+VERIFY_OPTIONS = [
+    "Concur",
+    "Partially concur",
+    "Needs reconsideration"
+]
 
-st.markdown("### About This Application")
+def alignment_points(value):
+    return {"Aligned": 2, "Partially aligned": 1, "Review needed": 0}.get(value)
 
-# Photograph location
-photo_path = Path(__file__).parent / "profile_photo.png"
-
-# About and developer section
-information_column, photo_column = st.columns([3, 1])
-
-with information_column:
-    st.markdown("""
-    **DILP-LA Pedagogical Analytics System (DPAS)** is developed to support
-    data-informed lesson planning and pedagogical alignment analysis.
-
-    **Developer:** Dr. Meenakshi Dwivedi  
-    Assistant Professor, School of Education  
-    Mahatma Jyotiba Phule Rohilkhand University  
-    Bareilly, Uttar Pradesh, India
-    """)
-
-with photo_column:
-    if photo_path.exists():
-        st.image(
-            str(photo_path),
-            width=165,
-            caption="Dr. Meenakshi Dwivedi"
-        )
-    else:
-        st.warning("Profile photograph not found.")
-
-st.markdown("---")
-
-
-# -------- LESSON CONTEXT AND PURPOSE --------
-st.subheader("Lesson Context and Purpose")
-st.caption(
-    "These details provide the pedagogical context for interpreting lesson-design choices. "
-    "They do not yet affect the PAS calculation in this version."
-)
-
-subject_topic = st.text_input(
-    "Subject / Topic",
-    placeholder="e.g., Science - Photosynthesis"
-)
-
-class_level = st.text_input(
-    "Class / Grade Level",
-    placeholder="e.g., Grade 7 / B.Ed. practicum class"
-)
-
-learning_outcome = st.text_area(
-    "Intended Learning Outcome",
-    placeholder="State what learners should know, understand, or be able to do by the end of the lesson."
-)
-
-outcome_cognitive = st.selectbox(
-    "Primary Cognitive Demand of the Intended Learning Outcome",
-    [
-        "C1 - Remember",
-        "C2 - Understand",
-        "C3 - Apply",
-        "C4 - Analyze",
-        "C5 - Evaluate",
-        "C6 - Create"
-    ],
-    help=(
-        "Classify the primary cognitive process required by the intended learning outcome. "
-        "This is a descriptive classification, not a quality ranking."
-    )
-)
-
-lesson_purpose = st.selectbox(
-    "Lesson Purpose",
-    [
-        "Introduce a new concept",
-        "Develop conceptual understanding",
-        "Practice / application",
-        "Inquiry / problem solving",
-        "Revision / consolidation",
-        "Assessment / diagnosis",
-        "Other"
-    ]
-)
-
-learner_context = st.text_area(
-    "Learner / Context Consideration",
-    placeholder=(
-        "Optional: note relevant learner needs, prior knowledge, language, "
-        "classroom conditions, accessibility needs, or other contextual factors."
-    )
-)
-
-st.markdown("---")
-
-
-# -------- INPUT SECTION --------
-cognitive = st.selectbox(
-    "Cognitive Level",
-    [
-        "C1 - Remember",
-        "C2 - Understand",
-        "C3 - Apply",
-        "C4 - Analyze",
-        "C5 - Evaluate",
-        "C6 - Create"
-    ],
-    help=(
-        "Bloom's cognitive levels are used here as descriptive categories, "
-        "not as a quality hierarchy. C6 is not assumed to be better than C1."
-    )
-)
-
-st.caption(
-    "Bloom's taxonomy is used as a classification framework. "
-    "The appropriateness of a cognitive level depends on the intended learning outcome "
-    "and lesson purpose."
-)
-
-cognitive_rationale = st.text_area(
-    "Why is this planned cognitive demand appropriate for the intended learning outcome?",
-    placeholder="Briefly explain how the planned cognitive demand supports the stated outcome and lesson purpose."
-)
-
-cognition_alignment = st.radio(
-    "Objective–Cognition Alignment",
-    [
-        "Aligned - the planned cognitive demand appropriately supports the intended learning outcome",
-        "Partially aligned - the cognitive demand supports the outcome but needs adjustment",
-        "Review needed - the connection between the cognitive demand and intended outcome is unclear"
-    ]
-)
-
-strategy = st.selectbox(
-    "Pedagogical Strategy",
-    [
-        "PS1 - Lecture",
-        "PS2 - Discussion",
-        "PS3 - Activity-Based",
-        "PS4 - Inquiry-Based",
-        "PS5 - Experiential/Problem-Based"
-    ],
-    help=(
-        "Pedagogical strategies are used here as descriptive categories, "
-        "not as a quality hierarchy. Experiential/problem-based teaching is not "
-        "assumed to be inherently better than lecture, discussion, activity-based, "
-        "or inquiry-based teaching."
-    )
-)
-
-st.caption(
-    "Pedagogical strategy is treated as a classification. Its quality depends on "
-    "how well it fits the intended learning outcome, lesson purpose, content, and learner context."
-)
-
-strategy_rationale = st.text_area(
-    "Why is this strategy appropriate for the intended learning outcome?",
-    placeholder=(
-        "Briefly explain how the selected strategy will help learners achieve the stated outcome "
-        "in this lesson context."
-    )
-)
-
-strategy_alignment = st.radio(
-    "Objective–Strategy Alignment",
-    [
-        "Aligned - the strategy directly supports the intended learning outcome",
-        "Partially aligned - the strategy supports the outcome but needs adjustment or supplementation",
-        "Review needed - the connection between the strategy and the intended outcome is unclear"
-    ],
-    help=(
-        "Judge the fit between the strategy and the intended learning outcome. "
-        "Do not rate the strategy itself as better or worse than other strategies."
-    )
-)
-
-engagement = st.selectbox(
-    "Learner Engagement Mode",
-    [
-        "L1 - Individual",
-        "L2 - Pair",
-        "L3 - Group",
-        "L4 - Whole Class"
-    ],
-    help=(
-        "Learner engagement modes are descriptive categories, not quality levels. "
-        "Individual, pair, group, and whole-class participation may each be appropriate "
-        "depending on the intended learning outcome, lesson purpose, task, and classroom context."
-    )
-)
-
-st.caption(
-    "Learner engagement mode is treated as a classification. "
-    "No mode is assumed to be inherently superior to another."
-)
-
-engagement_rationale = st.text_area(
-    "Why is this engagement mode appropriate for the planned learning activity?",
-    placeholder=(
-        "Briefly explain why individual, pair, group, or whole-class participation "
-        "fits the task, lesson purpose, and learner context."
-    )
-)
-
-engagement_alignment = st.radio(
-    "Engagement Alignment",
-    [
-        "Aligned - the engagement mode appropriately supports the planned learning activity",
-        "Partially aligned - the engagement mode is usable but may need adjustment",
-        "Review needed - the fit between the engagement mode and planned activity is unclear"
-    ],
-    help=(
-        "Judge the fit between the participation structure and the planned learning activity. "
-        "Do not rate one engagement mode as inherently better than another."
-    )
-)
-
-st.markdown("#### Inclusivity and Learner Support")
-
-inclusion_needed = st.radio(
-    "Does this lesson require a specific adaptation or support for identified learner/context needs?",
-    [
-        "No specific adaptation need identified for this lesson",
-        "Yes - a specific learner/context need has been identified"
-    ],
-    help=(
-        "Inclusivity is not treated as a simple 'low-to-high' quantity. "
-        "The focus is on whether relevant learner needs are identified and appropriately addressed."
-    )
-)
-
-if inclusion_needed.startswith("Yes"):
-    inclusion_need = st.text_area(
-        "Identified learner/context need",
-        placeholder=(
-            "e.g., language support, accessibility need, prior-learning gap, "
-            "participation barrier, sensory need, or other relevant consideration."
-        )
-    )
-    inclusion_support = st.text_area(
-        "Planned adaptation / support",
-        placeholder=(
-            "Describe the specific instructional adaptation or support planned "
-            "to address the identified need."
-        )
-    )
-    inclusion_alignment = st.radio(
-        "Inclusivity Alignment",
-        [
-            "Aligned - the planned support appropriately addresses the identified need",
-            "Partially aligned - the support may help but requires refinement",
-            "Review needed - the planned support does not clearly address the identified need"
-        ],
-        help=(
-            "Judge the fit between the identified learner/context need and the planned support. "
-            "Do not rate the number or intensity of adaptations."
-        )
-    )
-else:
-    inclusion_need = ""
-    inclusion_support = ""
-    inclusion_alignment = "Not applicable - no specific adaptation need identified"
-
-st.caption(
-    "Inclusivity is evaluated in relation to relevant learner needs and planned support. "
-    "More adaptations are not automatically better; appropriateness and relevance matter."
-)
-
-inclusivity = (
-    "Specific learner/context need identified"
-    if inclusion_needed.startswith("Yes")
-    else "No specific adaptation need identified"
-)
-
-assessment = st.selectbox(
-    "Assessment Type",
-    [
-        "A1 - Formative",
-        "A2 - Summative",
-        "A3 - Peer Assessment",
-        "A4 - Self-Assessment"
-    ],
-    help=(
-        "Assessment types are descriptive categories, not quality levels. "
-        "Formative, summative, peer, and self-assessment may each be appropriate "
-        "depending on the intended learning outcome and lesson purpose."
-    )
-)
-
-st.caption(
-    "Assessment type is treated as a classification. "
-    "No assessment type is assumed to be inherently superior to another."
-)
-
-assessment_rationale = st.text_area(
-    "Why is this assessment appropriate for the intended learning outcome?",
-    placeholder=(
-        "Briefly explain how the selected assessment will provide evidence that learners "
-        "have achieved the stated outcome."
-    )
-)
-
-assessment_alignment = st.radio(
-    "Assessment Alignment",
-    [
-        "Aligned - the assessment directly measures the intended learning outcome",
-        "Partially aligned - the assessment provides some evidence but needs refinement",
-        "Review needed - the assessment does not clearly measure the intended learning outcome"
-    ],
-    help=(
-        "Judge the fit between the assessment method and the intended learning outcome. "
-        "Do not rate formative, summative, peer, or self-assessment as inherently better or worse."
-    )
-)
-
-st.markdown("---")
-
-
-# -------- CALCULATION AND VISUALIZATION --------
-if st.button(
-    "Calculate Provisional Pedagogical Alignment Score",
-    type="primary",
-    use_container_width=True
-):
-
-    # -------- V2 ALIGNMENT-BASED PAS --------
-    # Equal contribution from each applicable alignment dimension:
-    # Aligned = 2, Partially aligned = 1, Review needed = 0.
-    def alignment_points(judgment):
-        if judgment.startswith("Aligned"):
-            return 2
-        if judgment.startswith("Partially"):
-            return 1
-        if judgment.startswith("Review needed"):
-            return 0
-        return None
-
-    alignment_judgments = {
-        "Objective–Cognition": cognition_alignment,
-        "Objective–Strategy": strategy_alignment,
-        "Engagement": engagement_alignment,
-        "Inclusivity": inclusion_alignment,
-        "Assessment": assessment_alignment
+def compute_pas():
+    judgments = {
+        "Objective–Cognition": st.session_state.get("cognition_alignment"),
+        "Objective–Strategy": st.session_state.get("strategy_alignment"),
+        "Engagement": st.session_state.get("engagement_alignment"),
+        "Inclusivity": st.session_state.get("inclusion_alignment"),
+        "Assessment": st.session_state.get("assessment_alignment")
     }
-
-    applicable_scores = {
-        dimension: alignment_points(judgment)
-        for dimension, judgment in alignment_judgments.items()
-        if alignment_points(judgment) is not None
-    }
-
-    total_points = sum(applicable_scores.values())
-    maximum_points = 2 * len(applicable_scores)
-    pas = (total_points / maximum_points) * 100 if maximum_points else 0
-
+    scores = {}
+    for dimension, value in judgments.items():
+        pts = alignment_points(value)
+        if pts is not None:
+            scores[dimension] = pts
+    maximum = 2 * len(scores)
+    pas = (sum(scores.values()) / maximum * 100) if maximum else 0
     if pas >= 75:
         category = "Strong Alignment"
     elif pas >= 50:
         category = "Developing Alignment"
     else:
         category = "Alignment Needs Review"
+    return pas, category, scores
 
-    st.subheader("Results")
+def section_header(step, title, text):
+    st.markdown(f'<div class="dpas-kicker">STEP {step}</div>', unsafe_allow_html=True)
+    st.title(title)
+    st.caption(text)
 
-    result_column1, result_column2 = st.columns(2)
-    with result_column1:
-        st.metric("Pedagogical Alignment Score (V2)", f"{pas:.2f}%")
-    with result_column2:
-        st.metric("Alignment Category", category)
-
-    st.caption(
-        "V2 PAS summarizes explicit alignment judgments using equal contribution from each applicable dimension. "
-        "It does not reward higher Bloom levels, more strategies, particular engagement modes, more adaptations, "
-        "or any specific assessment type."
-    )
-
-    alignment_df = pd.DataFrame({
-        "Dimension": list(applicable_scores.keys()),
-        "Alignment (%)": [score / 2 * 100 for score in applicable_scores.values()]
-    }).set_index("Dimension")
-
-    st.subheader("Dimension-wise Alignment")
-    st.bar_chart(alignment_df)
-
-    # Objective–Cognition Alignment
-    st.markdown("#### Objective–Cognition Alignment")
-
-    st.info(
-        f"Outcome cognitive demand: {outcome_cognitive}\n\n"
-        f"Planned cognitive demand: {cognitive}\n\n"
-        f"Alignment judgment: {cognition_alignment}"
-    )
-
-    if cognition_alignment.startswith("Aligned"):
-        st.success("The planned cognitive demand appropriately supports the intended learning outcome.")
-    elif cognition_alignment.startswith("Partially"):
-        st.warning("The cognitive demand supports the outcome only partially; review whether refinement is needed.")
-    else:
-        st.warning("Review the connection between the intended learning outcome and the planned cognitive demand.")
-
-    st.caption(
-        "This indicator evaluates objective–cognition fit. It does not assume that higher Bloom levels are better "
-        "or that the two classifications must always be identical."
-    )
-
-    st.markdown("#### Objective–Strategy Alignment")
-
-    st.info(
-        f"Selected strategy: {strategy}\n\n"
-        f"Alignment judgment: {strategy_alignment}"
-    )
-
-    if strategy_alignment.startswith("Aligned"):
-        st.success(
-            "The selected strategy has been judged to directly support the intended learning outcome."
-        )
-    elif strategy_alignment.startswith("Partially"):
-        st.warning(
-            "The selected strategy appears to support the outcome only partially. "
-            "Review whether an adjustment or complementary strategy is needed."
-        )
-    else:
-        st.warning(
-            "Review the connection between the selected strategy and the intended learning outcome "
-            "before finalizing the lesson plan."
-        )
-
-    st.caption(
-        "This indicator evaluates strategy–outcome fit. It does not assume that lecture, "
-        "discussion, activity-based, inquiry-based, or experiential/problem-based teaching "
-        "is inherently superior."
-    )
-
-    st.markdown("#### Engagement Alignment")
-
-    st.info(
-        f"Selected engagement mode: {engagement}\n\n"
-        f"Alignment judgment: {engagement_alignment}"
-    )
-
-    if engagement_alignment.startswith("Aligned"):
-        st.success(
-            "The selected engagement mode has been judged to appropriately support the planned learning activity."
-        )
-    elif engagement_alignment.startswith("Partially"):
-        st.warning(
-            "The engagement mode may work, but review whether the participation structure "
-            "needs adjustment for the task, lesson purpose, or learner context."
-        )
-    else:
-        st.warning(
-            "Review whether the selected engagement mode appropriately supports the planned "
-            "learning activity before finalizing the lesson plan."
-        )
-
-    st.caption(
-        "This indicator evaluates engagement–activity fit. It does not assume that individual, "
-        "pair, group, or whole-class participation is inherently superior."
-    )
-
-    st.markdown("#### Assessment Alignment")
-
-    st.info(
-        f"Selected assessment type: {assessment}\n\n"
-        f"Alignment judgment: {assessment_alignment}"
-    )
-
-    if assessment_alignment.startswith("Aligned"):
-        st.success(
-            "The selected assessment has been judged to directly measure the intended learning outcome."
-        )
-    elif assessment_alignment.startswith("Partially"):
-        st.warning(
-            "The assessment provides only partial evidence of the intended learning outcome. "
-            "Review whether the task, criteria, or evidence should be refined."
-        )
-    else:
-        st.warning(
-            "Review whether the selected assessment actually measures the intended learning outcome "
-            "before finalizing the lesson plan."
-        )
-
-    st.caption(
-        "This indicator evaluates assessment–outcome fit. It does not assume that formative, "
-        "summative, peer, or self-assessment is inherently superior."
-    )
-
-    st.markdown("#### Inclusivity Alignment")
-
-    if inclusion_needed.startswith("Yes"):
-        st.info(
-            f"Identified need: {inclusion_need or 'Not entered'}\n\n"
-            f"Planned support: {inclusion_support or 'Not entered'}\n\n"
-            f"Alignment judgment: {inclusion_alignment}"
-        )
-        if inclusion_alignment.startswith("Aligned"):
-            st.success(
-                "The planned support has been judged to appropriately address the identified learner/context need."
-            )
-        elif inclusion_alignment.startswith("Partially"):
-            st.warning(
-                "The planned support may address the need only partially. "
-                "Review whether the adaptation should be refined."
-            )
-        else:
-            st.warning(
-                "Review the connection between the identified need and the planned support "
-                "before finalizing the lesson plan."
-            )
-    else:
-        st.info(
-            "No specific adaptation need was identified for this lesson. "
-            "This is not treated as a lower-quality choice by itself."
-        )
-
-    st.caption(
-        "This indicator evaluates need–support fit rather than the amount of inclusion activity."
-    )
-
-    # Export results
+# ---------- SIDEBAR ----------
+photo_path = Path(__file__).parent / "profile_photo.png"
+with st.sidebar:
+    st.markdown("## 📊 DPAS V2")
+    st.caption("Context-Sensitive Pedagogical Alignment & Reflection System")
     st.markdown("---")
-    st.subheader("Export Results")
+    page = st.radio(
+        "Workflow",
+        [
+            "1 · Lesson Context",
+            "2 · Design Decisions",
+            "3 · Alignment Evidence",
+            "4 · Analytics",
+            "5 · Educator Verification",
+            "6 · Reflect & Revise",
+            "7 · Report"
+        ],
+        label_visibility="collapsed"
+    )
+    st.markdown("---")
+    with st.expander("About DPAS"):
+        if photo_path.exists():
+            st.image(str(photo_path), width=115)
+        st.markdown(
+            "**Developer:** Dr. Meenakshi Dwivedi  
+"
+            "Assistant Professor, School of Education  
+"
+            "Mahatma Jyotiba Phule Rohilkhand University"
+        )
+        st.caption(
+            "DPAS V2 supports pedagogical reasoning through context, justification, "
+            "alignment analysis, educator verification, reflection, and revision."
+        )
 
-    report_data = {
-        "Intended Outcome": [learning_outcome],
-        "Outcome Cognitive Demand": [outcome_cognitive],
-        "Planned Cognitive Level": [cognitive],
-        "Cognitive Rationale": [cognitive_rationale],
-        "Objective-Cognition Alignment": [cognition_alignment],
-        "Pedagogical Strategy": [strategy],
-        "Strategy Rationale": [strategy_rationale],
-        "Objective-Strategy Alignment": [strategy_alignment],
-        "Learner Engagement": [engagement],
-        "Engagement Rationale": [engagement_rationale],
-        "Engagement Alignment": [engagement_alignment],
-        "Inclusivity": [inclusivity],
-        "Identified Learner/Context Need": [inclusion_need],
-        "Planned Adaptation/Support": [inclusion_support],
-        "Inclusivity Alignment": [inclusion_alignment],
-        "Assessment Type": [assessment],
-        "Assessment Rationale": [assessment_rationale],
-        "Assessment Alignment": [assessment_alignment],
-        "PAS Score (V2)": [round(pas, 2)],
-        "Alignment Category": [category],
-        "Cognitive Scoring Note": [
-            "Bloom category is descriptive and excluded from numerical scoring in V2."
-        ],
-        "Strategy Scoring Note": [
-            "Pedagogical strategy is descriptive and excluded from numerical scoring in V2."
-        ],
-        "Engagement Scoring Note": [
-            "Learner engagement mode is descriptive and excluded from numerical scoring in V2."
-        ],
-        "Inclusivity Scoring Note": [
-            "Inclusivity is recorded through identified need and planned support, "
-            "and is excluded from numerical scoring during V2 redesign."
-        ],
-        "Assessment Scoring Note": [
-            "Assessment type is descriptive and excluded from numerical scoring in V2."
-        ]
+# ---------- PAGE 1 ----------
+if page.startswith("1"):
+    section_header(
+        "1 OF 7",
+        "Lesson Context",
+        "Define the lesson before making pedagogical decisions. These details provide the context for later alignment analysis."
+    )
+    c1, c2 = st.columns(2)
+    with c1:
+        st.text_input("Subject / Topic", key="subject_topic", placeholder="e.g., Science - Photosynthesis")
+        st.text_area(
+            "Intended Learning Outcome",
+            key="learning_outcome",
+            placeholder="State what learners should know, understand, or be able to do."
+        )
+        st.selectbox(
+            "Primary Cognitive Demand of the Outcome",
+            COGNITIVE,
+            key="outcome_cognitive",
+            help="Bloom categories are descriptive here; higher levels are not treated as inherently better."
+        )
+    with c2:
+        st.text_input("Class / Grade Level", key="class_level", placeholder="e.g., Grade 7")
+        st.selectbox("Lesson Purpose", LESSON_PURPOSES, key="lesson_purpose")
+        st.text_area(
+            "Learner / Context Consideration",
+            key="learner_context",
+            placeholder="Prior knowledge, language, accessibility, classroom conditions, or other relevant context."
+        )
+    st.info("DPAS interprets later choices in relation to this lesson context; it does not reward particular methods in isolation.")
+
+# ---------- PAGE 2 ----------
+elif page.startswith("2"):
+    section_header(
+        "2 OF 7",
+        "Design Decisions",
+        "Choose the lesson-design options you currently consider appropriate. No option is treated as universally superior."
+    )
+    a, b = st.columns(2)
+    with a:
+        st.markdown('<div class="dpas-card"><div class="dpas-title">🧠 Cognitive Demand</div><div class="small-note">What kind of thinking will the planned learning activity emphasize?</div></div>', unsafe_allow_html=True)
+        st.selectbox("Planned Cognitive Demand", COGNITIVE, key="cognitive")
+        st.markdown('<div class="dpas-card"><div class="dpas-title">👥 Learner Engagement</div><div class="small-note">How will learners participate in the activity?</div></div>', unsafe_allow_html=True)
+        st.selectbox("Engagement Mode", ENGAGEMENT, key="engagement")
+    with b:
+        st.markdown('<div class="dpas-card"><div class="dpas-title">🎯 Pedagogical Strategy</div><div class="small-note">Which strategy best fits this lesson purpose and context?</div></div>', unsafe_allow_html=True)
+        st.selectbox("Pedagogical Strategy", STRATEGIES, key="strategy")
+        st.markdown('<div class="dpas-card"><div class="dpas-title">✅ Assessment</div><div class="small-note">How will evidence of learning be gathered?</div></div>', unsafe_allow_html=True)
+        st.selectbox("Assessment Type", ASSESSMENTS, key="assessment")
+
+    st.markdown("### ♿ Inclusivity & Learner Support")
+    st.radio(
+        "Is a specific adaptation or support needed for an identified learner/context need?",
+        ["No specific adaptation need identified", "Yes - a specific learner/context need has been identified"],
+        key="inclusion_needed"
+    )
+    if st.session_state.get("inclusion_needed", "").startswith("Yes"):
+        x, y = st.columns(2)
+        with x:
+            st.text_area("Identified learner/context need", key="inclusion_need")
+        with y:
+            st.text_area("Planned adaptation / support", key="inclusion_support")
+    else:
+        st.session_state["inclusion_need"] = ""
+        st.session_state["inclusion_support"] = ""
+
+# ---------- PAGE 3 ----------
+elif page.startswith("3"):
+    section_header(
+        "3 OF 7",
+        "Alignment Evidence",
+        "Justify each pedagogical decision before judging its alignment. The purpose is reflective reasoning, not score maximization."
+    )
+
+    tabs = st.tabs(["Cognition", "Strategy", "Engagement", "Inclusivity", "Assessment"])
+
+    with tabs[0]:
+        st.write("**Outcome:**", st.session_state.get("learning_outcome", "Not entered"))
+        st.write("**Outcome demand:**", st.session_state.get("outcome_cognitive", "Not selected"))
+        st.write("**Planned demand:**", st.session_state.get("cognitive", "Not selected"))
+        st.text_area(
+            "Why is this cognitive demand appropriate for the intended learning outcome?",
+            key="cognitive_rationale"
+        )
+        st.radio("Objective–Cognition Alignment", ALIGNMENT_OPTIONS, key="cognition_alignment", horizontal=True)
+
+    with tabs[1]:
+        st.write("**Selected strategy:**", st.session_state.get("strategy", "Not selected"))
+        st.text_area(
+            "How will this strategy help learners achieve the intended learning outcome?",
+            key="strategy_rationale"
+        )
+        st.radio("Objective–Strategy Alignment", ALIGNMENT_OPTIONS, key="strategy_alignment", horizontal=True)
+
+    with tabs[2]:
+        st.write("**Selected engagement mode:**", st.session_state.get("engagement", "Not selected"))
+        st.text_area(
+            "Why is this engagement mode appropriate for the planned learning activity?",
+            key="engagement_rationale"
+        )
+        st.radio("Engagement Alignment", ALIGNMENT_OPTIONS, key="engagement_alignment", horizontal=True)
+
+    with tabs[3]:
+        if st.session_state.get("inclusion_needed", "").startswith("Yes"):
+            st.write("**Identified need:**", st.session_state.get("inclusion_need", ""))
+            st.write("**Planned support:**", st.session_state.get("inclusion_support", ""))
+            st.radio("Need–Support Alignment", ALIGNMENT_OPTIONS, key="inclusion_alignment", horizontal=True)
+        else:
+            st.session_state["inclusion_alignment"] = "Not applicable"
+            st.info("No specific adaptation need was identified. This is treated as not applicable, not as lower quality.")
+
+    with tabs[4]:
+        st.write("**Selected assessment:**", st.session_state.get("assessment", "Not selected"))
+        st.text_area(
+            "How will this assessment provide evidence of the intended learning outcome?",
+            key="assessment_rationale"
+        )
+        st.radio("Assessment–Outcome Alignment", ALIGNMENT_OPTIONS, key="assessment_alignment", horizontal=True)
+
+    st.caption("Aligned = 2, Partially aligned = 1, Review needed = 0. These points summarize alignment judgments; they do not rank teaching methods.")
+
+# ---------- PAGE 4 ----------
+elif page.startswith("4"):
+    section_header(
+        "4 OF 7",
+        "Pedagogical Analytics",
+        "Review the coherence of the lesson design. A high score means stronger internal alignment, not a universally 'better' teaching method."
+    )
+    required = ["cognition_alignment", "strategy_alignment", "engagement_alignment", "assessment_alignment"]
+    if not all(k in st.session_state for k in required):
+        st.warning("Complete Step 3 · Alignment Evidence before viewing analytics.")
+    else:
+        pas, category, scores = compute_pas()
+        if "initial_pas" not in st.session_state:
+            st.session_state["initial_pas"] = pas
+            st.session_state["initial_category"] = category
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Pedagogical Alignment Score", f"{pas:.1f}%")
+        m2.metric("Alignment Category", category)
+        m3.metric("Applicable Dimensions", len(scores))
+
+        chart = pd.DataFrame({
+            "Dimension": list(scores.keys()),
+            "Alignment (%)": [v / 2 * 100 for v in scores.values()]
+        }).set_index("Dimension")
+        st.subheader("Alignment Profile")
+        st.bar_chart(chart)
+
+        st.subheader("Decision Map")
+        map_cols = st.columns(len(scores))
+        for col, (dimension, value) in zip(map_cols, scores.items()):
+            label = "Aligned" if value == 2 else ("Partial" if value == 1 else "Review")
+            with col:
+                st.markdown(
+                    f'<div class="dpas-card"><div class="dpas-kicker">{dimension}</div>'
+                    f'<div class="dpas-title">{label}</div></div>',
+                    unsafe_allow_html=True
+                )
+
+        alerts = [d for d, v in scores.items() if v < 2]
+        if alerts:
+            st.warning("Review focus: " + ", ".join(alerts))
+        else:
+            st.success("All applicable dimensions are currently judged as aligned.")
+
+        st.info("Why this result? PAS is the equal-contribution summary of the applicable alignment judgments. No Bloom level, strategy, engagement mode, adaptation count, or assessment type receives an inherent quality advantage.")
+
+# ---------- PAGE 5 ----------
+elif page.startswith("5"):
+    section_header(
+        "5 OF 7",
+        "Teacher-Educator Verification",
+        "An educator can independently verify the novice teacher's reasoning. Student and educator judgments remain separate."
+    )
+    st.info("Prototype verification layer: in a later multi-user deployment this section should be protected by teacher-educator login and persistent storage.")
+
+    dimensions = [
+        ("Objective–Cognition", "cognition_alignment", "verify_cognition"),
+        ("Objective–Strategy", "strategy_alignment", "verify_strategy"),
+        ("Engagement", "engagement_alignment", "verify_engagement"),
+        ("Inclusivity", "inclusion_alignment", "verify_inclusion"),
+        ("Assessment", "assessment_alignment", "verify_assessment")
+    ]
+
+    for title, student_key, verify_key in dimensions:
+        if title == "Inclusivity" and st.session_state.get("inclusion_alignment") == "Not applicable":
+            continue
+        with st.expander(title, expanded=False):
+            st.write("**Student judgment:**", st.session_state.get(student_key, "Not completed"))
+            st.radio("Educator verification", VERIFY_OPTIONS, key=verify_key, horizontal=True)
+            st.text_area("Educator comment", key=f"{verify_key}_comment")
+
+# ---------- PAGE 6 ----------
+elif page.startswith("6"):
+    section_header(
+        "6 OF 7",
+        "Reflect & Revise",
+        "Use analytics and educator feedback to reconsider one or more pedagogical decisions."
+    )
+    st.text_area(
+        "Which pedagogical decision would you reconsider after reviewing the alignment analysis and educator feedback, and why?",
+        key="reflection"
+    )
+    st.text_area(
+        "What revision will you make to the lesson design?",
+        key="revision_note"
+    )
+
+    if all(k in st.session_state for k in ["cognition_alignment", "strategy_alignment", "engagement_alignment", "assessment_alignment"]):
+        current_pas, current_category, _ = compute_pas()
+        initial_pas = st.session_state.get("initial_pas", current_pas)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Initial PAS", f"{initial_pas:.1f}%")
+        c2.metric("Current PAS", f"{current_pas:.1f}%")
+        c3.metric("Change", f"{current_pas - initial_pas:+.1f} points")
+        st.caption("Return to Design Decisions or Alignment Evidence to revise choices; the current PAS will update when you revisit Analytics.")
+
+# ---------- PAGE 7 ----------
+elif page.startswith("7"):
+    section_header(
+        "7 OF 7",
+        "Final Report",
+        "Export a transparent record of lesson context, decisions, rationales, alignment judgments, verification, and reflection."
+    )
+    pas, category, _ = compute_pas()
+
+    verification = {
+        "Cognition Verification": st.session_state.get("verify_cognition", ""),
+        "Strategy Verification": st.session_state.get("verify_strategy", ""),
+        "Engagement Verification": st.session_state.get("verify_engagement", ""),
+        "Inclusivity Verification": st.session_state.get("verify_inclusion", ""),
+        "Assessment Verification": st.session_state.get("verify_assessment", "")
     }
 
-    report_df = pd.DataFrame(report_data)
-    csv = report_df.to_csv(index=False).encode("utf-8")
+    report = {
+        "Subject / Topic": st.session_state.get("subject_topic", ""),
+        "Class / Grade": st.session_state.get("class_level", ""),
+        "Intended Learning Outcome": st.session_state.get("learning_outcome", ""),
+        "Lesson Purpose": st.session_state.get("lesson_purpose", ""),
+        "Outcome Cognitive Demand": st.session_state.get("outcome_cognitive", ""),
+        "Planned Cognitive Demand": st.session_state.get("cognitive", ""),
+        "Pedagogical Strategy": st.session_state.get("strategy", ""),
+        "Learner Engagement": st.session_state.get("engagement", ""),
+        "Assessment Type": st.session_state.get("assessment", ""),
+        "Cognitive Rationale": st.session_state.get("cognitive_rationale", ""),
+        "Strategy Rationale": st.session_state.get("strategy_rationale", ""),
+        "Engagement Rationale": st.session_state.get("engagement_rationale", ""),
+        "Assessment Rationale": st.session_state.get("assessment_rationale", ""),
+        "Objective-Cognition Alignment": st.session_state.get("cognition_alignment", ""),
+        "Objective-Strategy Alignment": st.session_state.get("strategy_alignment", ""),
+        "Engagement Alignment": st.session_state.get("engagement_alignment", ""),
+        "Inclusivity Alignment": st.session_state.get("inclusion_alignment", ""),
+        "Assessment Alignment": st.session_state.get("assessment_alignment", ""),
+        "Identified Learner/Context Need": st.session_state.get("inclusion_need", ""),
+        "Planned Adaptation/Support": st.session_state.get("inclusion_support", ""),
+        "PAS Score (V2)": round(pas, 2),
+        "Alignment Category": category,
+        "Reflection": st.session_state.get("reflection", ""),
+        "Revision Note": st.session_state.get("revision_note", ""),
+        **verification
+    }
 
+    preview = pd.DataFrame([report])
+    st.dataframe(preview, use_container_width=True)
+    csv = preview.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="📥 Download PAS Report (CSV)",
+        "📥 Download DPAS V2 Report (CSV)",
         data=csv,
-        file_name="PAS_Lesson_Plan_Report.csv",
+        file_name="DPAS_V2_Lesson_Alignment_Report.csv",
         mime="text/csv",
         use_container_width=True
     )
+    st.caption("PAS is a formative alignment indicator. Student self-analysis and teacher-educator verification are reported separately and are not averaged into a single quality score.")
