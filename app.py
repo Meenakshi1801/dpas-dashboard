@@ -1254,20 +1254,88 @@ elif page.startswith("B2"):
         pas, category, scores = compute_pas()
 
     if lesson_id:
+            st.subheader("Student Self-Alignment Analytics")
             m1, m2, m3 = st.columns(3)
-            m1.metric("Pedagogical Alignment Score", f"{pas:.1f}%")
-            m2.metric("Alignment Category", category)
+            m1.metric("Student PAS", f"{pas:.1f}%")
+            m2.metric("Student Alignment Category", category)
             m3.metric("Applicable Dimensions", len(scores))
+
             chart = pd.DataFrame({
                 "Dimension": list(scores.keys()),
-                "Alignment (%)": [v / 2 * 100 for v in scores.values()],
+                "Student Alignment (%)": [v / 2 * 100 for v in scores.values()],
             }).set_index("Dimension")
-            st.subheader("Alignment Profile")
+            st.markdown("#### Student Alignment Profile")
             st.bar_chart(chart)
+
             st.info(
-                "PAS summarizes explicit alignment judgments. It does not reward higher Bloom levels, "
-                "a particular teaching strategy, a particular engagement mode, more adaptations, or a particular assessment type."
+                "The PAS above is based on the student's own alignment judgments. "
+                "Teacher-educator verification is shown separately below and is not averaged into the PAS."
             )
+
+            verification = fetch_one("educator_verification", lesson_id)
+
+            st.subheader("Teacher-Educator Verification")
+            if not verification:
+                st.warning("Teacher-educator verification has not yet been submitted for this lesson.")
+            else:
+                comparison_rows = [
+                    {
+                        "Dimension": "Objective–Cognition",
+                        "Student judgment": evidence.get("cognition_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("cognition_alignment", ""),
+                        "Teacher verification": verification.get("cognition_verification", ""),
+                        "Teacher comment": verification.get("cognition_comment", ""),
+                    },
+                    {
+                        "Dimension": "Objective–Strategy",
+                        "Student judgment": evidence.get("strategy_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("strategy_alignment", ""),
+                        "Teacher verification": verification.get("strategy_verification", ""),
+                        "Teacher comment": verification.get("strategy_comment", ""),
+                    },
+                    {
+                        "Dimension": "Engagement",
+                        "Student judgment": evidence.get("engagement_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("engagement_alignment", ""),
+                        "Teacher verification": verification.get("engagement_verification", ""),
+                        "Teacher comment": verification.get("engagement_comment", ""),
+                    },
+                    {
+                        "Dimension": "Inclusivity",
+                        "Student judgment": evidence.get("inclusion_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("inclusion_alignment", ""),
+                        "Teacher verification": verification.get("inclusion_verification", ""),
+                        "Teacher comment": verification.get("inclusion_comment", ""),
+                    },
+                    {
+                        "Dimension": "Assessment",
+                        "Student judgment": evidence.get("assessment_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("assessment_alignment", ""),
+                        "Teacher verification": verification.get("assessment_verification", ""),
+                        "Teacher comment": verification.get("assessment_comment", ""),
+                    },
+                ]
+                comparison_rows = [
+                    row for row in comparison_rows
+                    if row["Student judgment"] not in ("Not applicable", None, "")
+                    or row["Teacher verification"]
+                    or row["Teacher comment"]
+                ]
+
+                verification_values = [
+                    row["Teacher verification"] for row in comparison_rows if row["Teacher verification"]
+                ]
+                concurred = sum(v == "Concur" for v in verification_values)
+                partial = sum(v == "Partially concur" for v in verification_values)
+                reconsider = sum(v == "Needs reconsideration" for v in verification_values)
+
+                v1, v2, v3 = st.columns(3)
+                v1.metric("Concur", concurred)
+                v2.metric("Partially Concur", partial)
+                v3.metric("Needs Reconsideration", reconsider)
+
+                st.markdown("#### Student–Evaluator Comparison")
+                st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True, hide_index=True)
+
+                st.info(
+                    "Teacher-educator verification is intentionally kept as an independent external judgment. "
+                    "It is not converted into the student's PAS or combined into a single quality score."
+                )
 
 elif page.startswith("B3"):
     section_header(
