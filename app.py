@@ -296,6 +296,27 @@ st.caption(
     "No assessment type is assumed to be inherently superior to another."
 )
 
+assessment_rationale = st.text_area(
+    "Why is this assessment appropriate for the intended learning outcome?",
+    placeholder=(
+        "Briefly explain how the selected assessment will provide evidence that learners "
+        "have achieved the stated outcome."
+    )
+)
+
+assessment_alignment = st.radio(
+    "Assessment Alignment",
+    [
+        "Aligned - the assessment directly measures the intended learning outcome",
+        "Partially aligned - the assessment provides some evidence but needs refinement",
+        "Review needed - the assessment does not clearly measure the intended learning outcome"
+    ],
+    help=(
+        "Judge the fit between the assessment method and the intended learning outcome. "
+        "Do not rate formative, summative, peer, or self-assessment as inherently better or worse."
+    )
+)
+
 st.markdown("---")
 
 
@@ -397,10 +418,31 @@ if st.button(
         "pair, group, or whole-class participation is inherently superior."
     )
 
+    st.markdown("#### Assessment Alignment")
+
     st.info(
-        f"Selected assessment type: {assessment}. "
-        "This assessment type is not scored numerically in V2. Its appropriateness will later "
-        "be evaluated against the intended learning outcome and lesson purpose."
+        f"Selected assessment type: {assessment}\n\n"
+        f"Alignment judgment: {assessment_alignment}"
+    )
+
+    if assessment_alignment.startswith("Aligned"):
+        st.success(
+            "The selected assessment has been judged to directly measure the intended learning outcome."
+        )
+    elif assessment_alignment.startswith("Partially"):
+        st.warning(
+            "The assessment provides only partial evidence of the intended learning outcome. "
+            "Review whether the task, criteria, or evidence should be refined."
+        )
+    else:
+        st.warning(
+            "Review whether the selected assessment actually measures the intended learning outcome "
+            "before finalizing the lesson plan."
+        )
+
+    st.caption(
+        "This indicator evaluates assessment–outcome fit. It does not assume that formative, "
+        "summative, peer, or self-assessment is inherently superior."
     )
 
     st.markdown("#### Inclusivity Alignment")
@@ -455,6 +497,8 @@ if st.button(
         "Planned Adaptation/Support": [inclusion_support],
         "Inclusivity Alignment": [inclusion_alignment],
         "Assessment Type": [assessment],
+        "Assessment Rationale": [assessment_rationale],
+        "Assessment Alignment": [assessment_alignment],
         "PAS Status": ["Numerical PAS temporarily disabled during V2 redesign"],
         "Cognitive Scoring Note": [
             "Bloom category is descriptive and excluded from numerical scoring in V2."
