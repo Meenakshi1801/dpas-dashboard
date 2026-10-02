@@ -872,9 +872,8 @@ with st.sidebar:
                     [
                         "B1 · My Submitted Lessons",
                         "B2 · Analytics",
-                        "B3 · Evaluator's Feedback",
-                        "B4 · Reflect & Revise",
-                        "B5 · Report",
+                        "B3 · Reflect & Revise",
+                        "B4 · Report",
                     ],
                     label_visibility="collapsed",
                 )
@@ -1330,61 +1329,28 @@ elif page.startswith("B2"):
                 v3.metric("Needs Reconsideration", reconsider)
 
                 st.markdown("#### Student–Evaluator Comparison")
-                st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True, hide_index=True)
+                for row in comparison_rows:
+                    with st.expander(row["Dimension"], expanded=True):
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            st.markdown("**Student judgment**")
+                            st.write(row["Student judgment"] or "—")
+                        with c2:
+                            st.markdown("**Teacher verification**")
+                            st.write(row["Teacher verification"] or "—")
+                        st.markdown("**Teacher comment**")
+                        st.write(row["Teacher comment"] or "—")
 
                 st.info(
                     "Teacher-educator verification is intentionally kept as an independent external judgment. "
                     "It is not converted into the student's PAS or combined into a single quality score."
                 )
 
-elif page.startswith("B3"):
-    section_header(
-        "B3",
-        "Evaluator's Feedback",
-        "Feedback appears here after your selected teacher educator completes verification.",
-    )
-    lesson_id = st.session_state.get("lesson_id")
-    if not lesson_id:
-        st.info("No lesson is currently open. Go to **My Lessons**, open the lesson you submitted, and then return here to view educator feedback.")
-    else:
-        verification = fetch_one("educator_verification", lesson_id)
-        if not verification:
-            st.info("Your teacher educator has not submitted feedback yet.")
-        else:
-            rows = [
-                ("Objective–Cognition", verification.get("cognition_verification"), verification.get("cognition_comment")),
-                ("Objective–Strategy", verification.get("strategy_verification"), verification.get("strategy_comment")),
-                ("Engagement", verification.get("engagement_verification"), verification.get("engagement_comment")),
-                ("Inclusivity", verification.get("inclusion_verification"), verification.get("inclusion_comment")),
-                ("Assessment", verification.get("assessment_verification"), verification.get("assessment_comment")),
-            ]
-            for title, judgment, comment in rows:
-                if not judgment and not comment:
-                    continue
-                with st.expander(title, expanded=True):
-                    st.write("**Teacher-educator verification:**", judgment or "—")
-                    st.write("**Comment:**", comment or "—")
-
 elif page.startswith("B4"):
-    section_header(
-        "B4",
-        "Reflect & Revise",
-        "Use the analytics and teacher-educator feedback to reconsider your lesson design.",
-    )
-    st.text_area(
-        "Which pedagogical decision would you reconsider after reviewing the feedback, and why?",
-        key="reflection",
-    )
-    st.text_area("What revision will you make to the lesson design?", key="revision_note")
-    if st.button("Submit Reflection & Revision", type="primary", use_container_width=True):
-        if save_revision():
-            st.success("Reflection and revision saved.")
-
-elif page.startswith("B5"):
     if not st.session_state.get("viewing_saved_lesson"):
         load_lesson_procedure()
     section_header(
-        "B5",
+        "B4",
         "Final Report",
         "Export a transparent record of lesson context, procedure, decisions, alignment judgments, verification, and reflection.",
     )
