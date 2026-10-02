@@ -157,6 +157,27 @@ st.caption(
     "how well it fits the intended learning outcome, lesson purpose, content, and learner context."
 )
 
+strategy_rationale = st.text_area(
+    "Why is this strategy appropriate for the intended learning outcome?",
+    placeholder=(
+        "Briefly explain how the selected strategy will help learners achieve the stated outcome "
+        "in this lesson context."
+    )
+)
+
+strategy_alignment = st.radio(
+    "Objective–Strategy Alignment",
+    [
+        "Aligned - the strategy directly supports the intended learning outcome",
+        "Partially aligned - the strategy supports the outcome but needs adjustment or supplementation",
+        "Review needed - the connection between the strategy and the intended outcome is unclear"
+    ],
+    help=(
+        "Judge the fit between the strategy and the intended learning outcome. "
+        "Do not rate the strategy itself as better or worse than other strategies."
+    )
+)
+
 engagement = st.selectbox(
     "Learner Engagement Mode",
     [
@@ -287,10 +308,32 @@ if st.button(
         "cognitive demand. It does not assume that higher Bloom levels are better."
     )
 
+    st.markdown("#### Objective–Strategy Alignment")
+
     st.info(
-        f"Selected pedagogical strategy: {strategy}. "
-        "This strategy is not scored numerically in V2. Its appropriateness will later be "
-        "evaluated against the intended learning outcome, lesson purpose, and learner context."
+        f"Selected strategy: {strategy}\n\n"
+        f"Alignment judgment: {strategy_alignment}"
+    )
+
+    if strategy_alignment.startswith("Aligned"):
+        st.success(
+            "The selected strategy has been judged to directly support the intended learning outcome."
+        )
+    elif strategy_alignment.startswith("Partially"):
+        st.warning(
+            "The selected strategy appears to support the outcome only partially. "
+            "Review whether an adjustment or complementary strategy is needed."
+        )
+    else:
+        st.warning(
+            "Review the connection between the selected strategy and the intended learning outcome "
+            "before finalizing the lesson plan."
+        )
+
+    st.caption(
+        "This indicator evaluates strategy–outcome fit. It does not assume that lecture, "
+        "discussion, activity-based, inquiry-based, or experiential/problem-based teaching "
+        "is inherently superior."
     )
 
     st.info(
@@ -327,6 +370,8 @@ if st.button(
         "Planned Cognitive Level": [cognitive],
         "Objective-Cognition Alignment": [cognition_alignment],
         "Pedagogical Strategy": [strategy],
+        "Strategy Rationale": [strategy_rationale],
+        "Objective-Strategy Alignment": [strategy_alignment],
         "Learner Engagement": [engagement],
         "Inclusivity": [inclusivity],
         "Identified Learner/Context Need": [inclusion_need],
