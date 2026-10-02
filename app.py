@@ -135,6 +135,20 @@ st.caption(
     "and lesson purpose."
 )
 
+cognitive_rationale = st.text_area(
+    "Why is this planned cognitive demand appropriate for the intended learning outcome?",
+    placeholder="Briefly explain how the planned cognitive demand supports the stated outcome and lesson purpose."
+)
+
+cognition_alignment = st.radio(
+    "Objective–Cognition Alignment",
+    [
+        "Aligned - the planned cognitive demand appropriately supports the intended learning outcome",
+        "Partially aligned - the cognitive demand supports the outcome but needs adjustment",
+        "Review needed - the connection between the cognitive demand and intended outcome is unclear"
+    ]
+)
+
 strategy = st.selectbox(
     "Pedagogical Strategy",
     [
@@ -343,24 +357,22 @@ if st.button(
     # Objective–Cognition Alignment
     st.markdown("#### Objective–Cognition Alignment")
 
-    if cognitive == outcome_cognitive:
-        cognition_alignment = "Aligned"
-        st.success(
-            f"Aligned: the intended learning outcome and the planned lesson both emphasize "
-            f"{cognitive}."
-        )
+    st.info(
+        f"Outcome cognitive demand: {outcome_cognitive}\n\n"
+        f"Planned cognitive demand: {cognitive}\n\n"
+        f"Alignment judgment: {cognition_alignment}"
+    )
+
+    if cognition_alignment.startswith("Aligned"):
+        st.success("The planned cognitive demand appropriately supports the intended learning outcome.")
+    elif cognition_alignment.startswith("Partially"):
+        st.warning("The cognitive demand supports the outcome only partially; review whether refinement is needed.")
     else:
-        cognition_alignment = "Review needed"
-        st.warning(
-            f"Review needed: the intended learning outcome is coded as {outcome_cognitive}, "
-            f"while the planned lesson emphasizes {cognitive}. This difference is not "
-            "automatically poor pedagogy; review whether the planned cognitive demand "
-            "appropriately supports the stated outcome and lesson purpose."
-        )
+        st.warning("Review the connection between the intended learning outcome and the planned cognitive demand.")
 
     st.caption(
-        "This indicator checks correspondence between the stated outcome and the planned "
-        "cognitive demand. It does not assume that higher Bloom levels are better."
+        "This indicator evaluates objective–cognition fit. It does not assume that higher Bloom levels are better "
+        "or that the two classifications must always be identical."
     )
 
     st.markdown("#### Objective–Strategy Alignment")
@@ -485,6 +497,7 @@ if st.button(
         "Intended Outcome": [learning_outcome],
         "Outcome Cognitive Demand": [outcome_cognitive],
         "Planned Cognitive Level": [cognitive],
+        "Cognitive Rationale": [cognitive_rationale],
         "Objective-Cognition Alignment": [cognition_alignment],
         "Pedagogical Strategy": [strategy],
         "Strategy Rationale": [strategy_rationale],
