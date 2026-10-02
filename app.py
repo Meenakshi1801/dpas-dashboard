@@ -871,7 +871,7 @@ with st.sidebar:
                     "Submitted lesson workspace",
                     [
                         "B1 · My Submitted Lessons",
-                        "B2 · Analytics",
+                        "B2 · Analytics & Teacher's Evaluation",
                         "B3 · Reflect & Revise",
                         "B4 · Report",
                     ],
@@ -1225,8 +1225,8 @@ elif page.startswith("A4"):
 elif page.startswith("B2"):
     section_header(
         "B2",
-        "Pedagogical Analytics",
-        "Review the coherence of your lesson design.",
+        "Pedagogical Analytics & Teacher's Evaluation",
+        "Review the student's alignment analytics alongside the teacher educator's independent evaluation.",
     )
     lesson_id = st.session_state.get("lesson_id")
     if not lesson_id:
