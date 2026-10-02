@@ -208,12 +208,21 @@ inclusivity = (
 assessment = st.selectbox(
     "Assessment Type",
     [
-        ("A1 - Formative", 1),
-        ("A2 - Summative", 2),
-        ("A3 - Peer Assessment", 3),
-        ("A4 - Self-Assessment", 4)
+        "A1 - Formative",
+        "A2 - Summative",
+        "A3 - Peer Assessment",
+        "A4 - Self-Assessment"
     ],
-    format_func=lambda option: option[0]
+    help=(
+        "Assessment types are descriptive categories, not quality levels. "
+        "Formative, summative, peer, and self-assessment may each be appropriate "
+        "depending on the intended learning outcome and lesson purpose."
+    )
+)
+
+st.caption(
+    "Assessment type is treated as a classification. "
+    "No assessment type is assumed to be inherently superior to another."
 )
 
 st.markdown("---")
@@ -226,74 +235,17 @@ if st.button(
     use_container_width=True
 ):
 
-    # Provisional scoring during V2 redesign.
-    # Cognitive level, pedagogical strategy, learner engagement mode, and inclusivity
-    # are intentionally excluded from numerical scoring while their alignment logic
-    # is being redesigned.
-    norm_scores = [
-        assessment[1] / 4
-    ]
+    # All five original dimensions have now been removed from hierarchical scoring.
+    # V2 will compute PAS only after explicit alignment logic is added in later steps.
+    pas = None
 
-    percentages = [score * 100 for score in norm_scores]
-    pas = np.mean(percentages)
-
-    # Determine alignment category
-    if pas >= 75:
-        category = "High Alignment"
-    elif pas >= 50:
-        category = "Moderate Alignment"
-    else:
-        category = "Low Alignment"
-
-    # Display results
+    # Display current V2 status
     st.subheader("Results")
-
-    result_column1, result_column2 = st.columns(2)
-
-    with result_column1:
-        st.metric(
-            label="Provisional Alignment Score",
-            value=f"{pas:.2f}%"
-        )
-
-    with result_column2:
-        st.metric(
-            label="Alignment Category",
-            value=category
-        )
-
-    # Gauge chart
-    fig_gauge = go.Figure(
-        go.Indicator(
-            mode="gauge+number",
-            value=pas,
-            number={"suffix": "%"},
-            title={"text": "Provisional Alignment Score"},
-            gauge={
-                "axis": {"range": [0, 100]},
-                "bar": {"color": "#1F77B4"},
-                "steps": [
-                    {"range": [0, 50], "color": "lightcoral"},
-                    {"range": [50, 75], "color": "khaki"},
-                    {"range": [75, 100], "color": "lightgreen"}
-                ],
-                "threshold": {
-                    "line": {"color": "black", "width": 4},
-                    "thickness": 0.75,
-                    "value": pas
-                }
-            }
-        )
-    )
-
-    fig_gauge.update_layout(
-        height=350,
-        margin={"l": 30, "r": 30, "t": 70, "b": 20}
-    )
-
-    st.plotly_chart(
-        fig_gauge,
-        use_container_width=True
+    st.info(
+        "Numerical PAS is temporarily disabled in V2 because the original hierarchical "
+        "scoring has been removed. A new alignment-based PAS will be introduced only after "
+        "objective–cognition, objective–strategy, engagement, inclusivity, and "
+        "assessment-alignment rules are defined."
     )
 
     st.info(
@@ -314,6 +266,12 @@ if st.button(
         "evaluated in relation to the planned learning activity and lesson purpose."
     )
 
+    st.info(
+        f"Selected assessment type: {assessment}. "
+        "This assessment type is not scored numerically in V2. Its appropriateness will later "
+        "be evaluated against the intended learning outcome and lesson purpose."
+    )
+
     if inclusion_needed.startswith("Yes"):
         st.info(
             "Inclusivity note: a specific learner/context need has been identified. "
@@ -326,34 +284,6 @@ if st.button(
             "This is not treated as a lower-quality choice by itself."
         )
 
-    # Feedback message
-    if pas < 50:
-        st.error(
-            "Low Alignment: Lesson components require stronger "
-            "pedagogical alignment."
-        )
-    elif pas < 75:
-        st.warning(
-            "Moderate Alignment: Some instructional elements can be improved."
-        )
-    else:
-        st.success(
-            "High Alignment: Lesson design demonstrates strong "
-            "pedagogical alignment."
-        )
-
-    # Dimension-wise chart
-    st.subheader("Dimension-wise Alignment")
-
-    df_chart = pd.DataFrame({
-        "Dimension": [
-            "Assessment"
-        ],
-        "Alignment (%)": percentages
-    }).set_index("Dimension")
-
-    st.bar_chart(df_chart)
-
     # Export results
     st.markdown("---")
     st.subheader("Export Results")
@@ -365,9 +295,8 @@ if st.button(
         "Inclusivity": [inclusivity],
         "Identified Learner/Context Need": [inclusion_need],
         "Planned Adaptation/Support": [inclusion_support],
-        "Assessment Type": [assessment[0]],
-        "Provisional PAS Score": [round(pas, 2)],
-        "Alignment Category": [category],
+        "Assessment Type": [assessment],
+        "PAS Status": ["Numerical PAS temporarily disabled during V2 redesign"],
         "Cognitive Scoring Note": [
             "Bloom category is descriptive and excluded from numerical scoring in V2."
         ],
@@ -380,6 +309,9 @@ if st.button(
         "Inclusivity Scoring Note": [
             "Inclusivity is recorded through identified need and planned support, "
             "and is excluded from numerical scoring during V2 redesign."
+        ],
+        "Assessment Scoring Note": [
+            "Assessment type is descriptive and excluded from numerical scoring in V2."
         ]
     }
 
