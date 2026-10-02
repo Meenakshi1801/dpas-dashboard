@@ -100,6 +100,30 @@ def compute_pas():
     return pas, category, scores
 
 
+def compute_pas_from_evidence(evidence):
+    judgments = {
+        "Objective–Cognition": evidence.get("cognition_alignment"),
+        "Objective–Strategy": evidence.get("strategy_alignment"),
+        "Engagement": evidence.get("engagement_alignment"),
+        "Inclusivity": evidence.get("inclusion_alignment"),
+        "Assessment": evidence.get("assessment_alignment"),
+    }
+    scores = {}
+    for dimension, value in judgments.items():
+        pts = alignment_points(value)
+        if pts is not None:
+            scores[dimension] = pts
+    maximum = 2 * len(scores)
+    pas = (sum(scores.values()) / maximum * 100) if maximum else 0
+    if pas >= 75:
+        category = "Strong Alignment"
+    elif pas >= 50:
+        category = "Developing Alignment"
+    else:
+        category = "Alignment Needs Review"
+    return pas, category, scores
+
+
 def clear_lesson_state():
     keys = [
         "lesson_id", "subject_topic", "class_level", "learning_outcome",
@@ -278,60 +302,33 @@ def open_student_lesson(lesson_id):
         if not lesson_res.data:
             st.error("Lesson not found.")
             return False
+
+        # A saved/submitted lesson is opened only for viewing analytics,
+        # educator feedback, reflection/revision, and report. It is not
+        # repopulated into the editable planning pages.
+        clear_lesson_state()
         lesson = lesson_res.data[0]
         st.session_state["lesson_id"] = lesson_id
-        lesson_map = {
-            "subject_topic": lesson.get("subject_topic", ""),
-            "class_level": lesson.get("class_level", ""),
-            "learning_outcome": lesson.get("learning_outcome", ""),
-            "outcome_cognitive": lesson.get("outcome_cognitive", ""),
-            "lesson_purpose": lesson.get("lesson_purpose", ""),
-            "learner_context": lesson.get("learner_context", ""),
-        }
-        for key, value in lesson_map.items():
-            st.session_state[key] = value or ""
-
-        design = fetch_one("design_decisions", lesson_id)
-        if design:
-            st.session_state["cognitive"] = design.get("cognitive", "") or ""
-            st.session_state["strategy"] = design.get("strategy", "") or ""
-            st.session_state["engagement"] = design.get("engagement", "") or ""
-            st.session_state["assessment"] = design.get("assessment", "") or ""
-            st.session_state["inclusion_needed"] = (
-                "Yes - a specific learner/context need has been identified"
-                if design.get("inclusion_needed")
-                else "No specific adaptation need identified"
-            )
-            st.session_state["inclusion_need"] = design.get("inclusion_need", "") or ""
-            st.session_state["inclusion_support"] = design.get("inclusion_support", "") or ""
-
-        procedure = fetch_one("lesson_procedures", lesson_id)
-        if procedure:
-            st.session_state["procedure_introduction"] = procedure.get("introduction", "") or ""
-            st.session_state["procedure_development"] = procedure.get("concept_development", "") or ""
-            st.session_state["procedure_activity"] = procedure.get("learning_activity", "") or ""
-            st.session_state["procedure_assessment"] = procedure.get("assessment_during_lesson", "") or ""
-            st.session_state["procedure_closure"] = procedure.get("closure_consolidation", "") or ""
-
-        evidence = fetch_one("alignment_evidence", lesson_id)
-        if evidence:
-            for key in [
-                "cognitive_rationale", "cognition_alignment",
-                "strategy_rationale", "strategy_alignment",
-                "engagement_rationale", "engagement_alignment",
-                "inclusion_alignment", "assessment_rationale", "assessment_alignment",
-            ]:
-                st.session_state[key] = evidence.get(key, "") or ""
-
-        revision = fetch_one("revisions", lesson_id)
-        if revision:
-            st.session_state["reflection"] = revision.get("reflection", "") or ""
-            st.session_state["revision_note"] = revision.get("revision_note", "") or ""
+        st.session_state["opened_lesson_status"] = lesson.get("status", "")
+        st.session_state["opened_subject_topic"] = lesson.get("subject_topic", "")
+        st.session_state["opened_class_level"] = lesson.get("class_level", "")
+        st.session_state["viewing_saved_lesson"] = True
         return True
     except Exception as e:
         st.error(f"Could not open lesson: {e}")
         return False
 
+
+
+def saved_lesson_view_guard():
+    if st.session_state.get("viewing_saved_lesson"):
+        st.info(
+            "This is a previously submitted lesson. Its planning fields are locked and are not reopened here. "
+            "Use **Analytics**, **Educator Feedback**, **Reflect & Revise**, or **Report** from the sidebar. "
+            "Use **Start New Lesson** for a new editable lesson."
+        )
+        return True
+    return False
 
 def save_lesson_context():
     user = current_user()
@@ -850,6 +847,10 @@ with st.sidebar:
             )
             if st.button("＋ Start New Lesson", use_container_width=True):
                 clear_lesson_state()
+                st.session_state.pop("viewing_saved_lesson", None)
+                st.session_state.pop("opened_lesson_status", None)
+                st.session_state.pop("opened_subject_topic", None)
+                st.session_state.pop("opened_class_level", None)
                 st.success("Ready for a new lesson.")
 
         st.markdown("---")
@@ -1020,6 +1021,8 @@ elif page == "My Lessons":
                 st.success("Lesson opened. You can now use Educator Feedback, Reflect & Revise, Analytics, or Report from the sidebar.")
 
 elif page.startswith("2"):
+    if saved_lesson_view_guard():
+        st.stop()
     section_header(
         "STEP 2 OF 9",
         "Lesson Context",
@@ -1039,6 +1042,8 @@ elif page.startswith("2"):
             st.success("Lesson Context saved. Continue to Design Decisions.")
 
 elif page.startswith("3"):
+    if saved_lesson_view_guard():
+        st.stop()
     hydrate_saved_lesson()
     if "inclusion_needed" not in st.session_state and "saved_inclusion_needed" in st.session_state:
         st.session_state["inclusion_needed"] = st.session_state["saved_inclusion_needed"]
@@ -1078,6 +1083,8 @@ elif page.startswith("3"):
             st.success("Design Decisions saved. Continue to Lesson Procedure.")
 
 elif page.startswith("4"):
+    if saved_lesson_view_guard():
+        st.stop()
     load_lesson_procedure()
     section_header(
         "STEP 4 OF 9",
@@ -1114,6 +1121,8 @@ elif page.startswith("4"):
             st.success("Lesson Procedure saved. Continue to Alignment Evidence & Submit.")
 
 elif page.startswith("5"):
+    if saved_lesson_view_guard():
+        st.stop()
     hydrate_saved_lesson()
     if "inclusion_needed" not in st.session_state and "saved_inclusion_needed" in st.session_state:
         st.session_state["inclusion_needed"] = st.session_state["saved_inclusion_needed"]
@@ -1189,34 +1198,50 @@ elif page.startswith("5"):
                 st.success("Submitted successfully. This lesson now appears in your selected teacher educator's DPAS inbox.")
 
 elif page.startswith("6"):
-    hydrate_saved_lesson()
-    load_alignment_draft()
     section_header(
         "STEP 6 OF 9",
         "Pedagogical Analytics",
         "Review the coherence of your lesson design.",
     )
-    required = ["cognition_alignment", "strategy_alignment", "engagement_alignment", "assessment_alignment"]
-    if not st.session_state.get("lesson_id"):
+    lesson_id = st.session_state.get("lesson_id")
+    if not lesson_id:
         st.info("No lesson is currently open. Go to **My Lessons**, open a saved lesson, and then return to Analytics.")
-    elif not all(st.session_state.get(k) for k in required):
-        st.warning("The selected lesson does not yet contain complete Alignment Evidence.")
+    elif st.session_state.get("viewing_saved_lesson"):
+        evidence = fetch_one("alignment_evidence", lesson_id)
+        required_values = [
+            evidence.get("cognition_alignment"),
+            evidence.get("strategy_alignment"),
+            evidence.get("engagement_alignment"),
+            evidence.get("assessment_alignment"),
+        ]
+        if not all(required_values):
+            st.warning("The selected lesson does not yet contain complete Alignment Evidence.")
+            st.stop()
+        pas, category, scores = compute_pas_from_evidence(evidence)
     else:
+        hydrate_saved_lesson()
+        load_alignment_draft()
+        required = ["cognition_alignment", "strategy_alignment", "engagement_alignment", "assessment_alignment"]
+        if not all(st.session_state.get(k) for k in required):
+            st.warning("Complete Alignment Evidence first.")
+            st.stop()
         pas, category, scores = compute_pas()
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Pedagogical Alignment Score", f"{pas:.1f}%")
-        m2.metric("Alignment Category", category)
-        m3.metric("Applicable Dimensions", len(scores))
-        chart = pd.DataFrame({
-            "Dimension": list(scores.keys()),
-            "Alignment (%)": [v / 2 * 100 for v in scores.values()],
-        }).set_index("Dimension")
-        st.subheader("Alignment Profile")
-        st.bar_chart(chart)
-        st.info(
-            "PAS summarizes explicit alignment judgments. It does not reward higher Bloom levels, "
-            "a particular teaching strategy, a particular engagement mode, more adaptations, or a particular assessment type."
-        )
+
+    if lesson_id:
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Pedagogical Alignment Score", f"{pas:.1f}%")
+            m2.metric("Alignment Category", category)
+            m3.metric("Applicable Dimensions", len(scores))
+            chart = pd.DataFrame({
+                "Dimension": list(scores.keys()),
+                "Alignment (%)": [v / 2 * 100 for v in scores.values()],
+            }).set_index("Dimension")
+            st.subheader("Alignment Profile")
+            st.bar_chart(chart)
+            st.info(
+                "PAS summarizes explicit alignment judgments. It does not reward higher Bloom levels, "
+                "a particular teaching strategy, a particular engagement mode, more adaptations, or a particular assessment type."
+            )
 
 elif page.startswith("7"):
     section_header(
@@ -1262,7 +1287,8 @@ elif page.startswith("8"):
             st.success("Reflection and revision saved.")
 
 elif page.startswith("9"):
-    load_lesson_procedure()
+    if not st.session_state.get("viewing_saved_lesson"):
+        load_lesson_procedure()
     section_header(
         "STEP 9 OF 9",
         "Final Report",
@@ -1271,8 +1297,37 @@ elif page.startswith("9"):
     if not st.session_state.get("lesson_id"):
         st.info("Complete and save a lesson first.")
     else:
-        pas, category, _ = compute_pas()
-        report = {
+        lesson_id = st.session_state["lesson_id"]
+        if st.session_state.get("viewing_saved_lesson"):
+            lesson = supabase.table("lesson_submissions").select("*").eq("id", lesson_id).limit(1).execute().data[0]
+            design = fetch_one("design_decisions", lesson_id)
+            procedure = fetch_one("lesson_procedures", lesson_id)
+            evidence = fetch_one("alignment_evidence", lesson_id)
+            revision = fetch_one("revisions", lesson_id)
+            pas, category, _ = compute_pas_from_evidence(evidence)
+            report = {
+                "Student": (profile or {}).get("full_name", ""),
+                "Subject / Topic": lesson.get("subject_topic", ""),
+                "Class / Grade": lesson.get("class_level", ""),
+                "Intended Learning Outcome": lesson.get("learning_outcome", ""),
+                "Lesson Purpose": lesson.get("lesson_purpose", ""),
+                "Planned Cognitive Demand": design.get("cognitive", ""),
+                "Pedagogical Strategy": design.get("strategy", ""),
+                "Learner Engagement": design.get("engagement", ""),
+                "Assessment Type": design.get("assessment", ""),
+                "Introduction / Set Induction": procedure.get("introduction", ""),
+                "Concept Development": procedure.get("concept_development", ""),
+                "Learning Activity / Practice": procedure.get("learning_activity", ""),
+                "Assessment During Lesson": procedure.get("assessment_during_lesson", ""),
+                "Closure / Consolidation": procedure.get("closure_consolidation", ""),
+                "PAS Score (V2)": round(pas, 2),
+                "Alignment Category": category,
+                "Reflection": revision.get("reflection", ""),
+                "Revision Note": revision.get("revision_note", ""),
+            }
+        else:
+            pas, category, _ = compute_pas()
+            report = {
             "Student": (profile or {}).get("full_name", ""),
             "Subject / Topic": st.session_state.get("subject_topic", ""),
             "Class / Grade": st.session_state.get("class_level", ""),
