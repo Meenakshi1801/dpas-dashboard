@@ -72,6 +72,22 @@ learning_outcome = st.text_area(
     placeholder="State what learners should know, understand, or be able to do by the end of the lesson."
 )
 
+outcome_cognitive = st.selectbox(
+    "Primary Cognitive Demand of the Intended Learning Outcome",
+    [
+        "C1 - Remember",
+        "C2 - Understand",
+        "C3 - Apply",
+        "C4 - Analyze",
+        "C5 - Evaluate",
+        "C6 - Create"
+    ],
+    help=(
+        "Classify the primary cognitive process required by the intended learning outcome. "
+        "This is a descriptive classification, not a quality ranking."
+    )
+)
+
 lesson_purpose = st.selectbox(
     "Lesson Purpose",
     [
@@ -248,10 +264,27 @@ if st.button(
         "assessment-alignment rules are defined."
     )
 
-    st.info(
-        f"Selected cognitive category: {cognitive}. "
-        "This category is not scored numerically in V2. Its alignment with the intended "
-        "learning outcome will be evaluated in a later redesign step."
+    # Objective–Cognition Alignment
+    st.markdown("#### Objective–Cognition Alignment")
+
+    if cognitive == outcome_cognitive:
+        cognition_alignment = "Aligned"
+        st.success(
+            f"Aligned: the intended learning outcome and the planned lesson both emphasize "
+            f"{cognitive}."
+        )
+    else:
+        cognition_alignment = "Review needed"
+        st.warning(
+            f"Review needed: the intended learning outcome is coded as {outcome_cognitive}, "
+            f"while the planned lesson emphasizes {cognitive}. This difference is not "
+            "automatically poor pedagogy; review whether the planned cognitive demand "
+            "appropriately supports the stated outcome and lesson purpose."
+        )
+
+    st.caption(
+        "This indicator checks correspondence between the stated outcome and the planned "
+        "cognitive demand. It does not assume that higher Bloom levels are better."
     )
 
     st.info(
@@ -289,7 +322,10 @@ if st.button(
     st.subheader("Export Results")
 
     report_data = {
-        "Cognitive Level": [cognitive],
+        "Intended Outcome": [learning_outcome],
+        "Outcome Cognitive Demand": [outcome_cognitive],
+        "Planned Cognitive Level": [cognitive],
+        "Objective-Cognition Alignment": [cognition_alignment],
         "Pedagogical Strategy": [strategy],
         "Learner Engagement": [engagement],
         "Inclusivity": [inclusivity],
