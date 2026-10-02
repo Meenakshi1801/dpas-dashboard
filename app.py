@@ -254,6 +254,85 @@ def login_account(expected_role):
         st.error(f"Sign in failed: {e}")
 
 
+def student_lessons():
+    user = current_user()
+    if not user or not supabase:
+        return []
+    try:
+        result = supabase.table("lesson_submissions").select("*").eq(
+            "student_id", user["id"]
+        ).order("created_at", desc=True).execute()
+        return result.data or []
+    except Exception as e:
+        st.error(f"Could not load your lessons: {e}")
+        return []
+
+
+def open_student_lesson(lesson_id):
+    if not supabase:
+        return False
+    try:
+        lesson_res = supabase.table("lesson_submissions").select("*").eq(
+            "id", lesson_id
+        ).limit(1).execute()
+        if not lesson_res.data:
+            st.error("Lesson not found.")
+            return False
+        lesson = lesson_res.data[0]
+        st.session_state["lesson_id"] = lesson_id
+        lesson_map = {
+            "subject_topic": lesson.get("subject_topic", ""),
+            "class_level": lesson.get("class_level", ""),
+            "learning_outcome": lesson.get("learning_outcome", ""),
+            "outcome_cognitive": lesson.get("outcome_cognitive", ""),
+            "lesson_purpose": lesson.get("lesson_purpose", ""),
+            "learner_context": lesson.get("learner_context", ""),
+        }
+        for key, value in lesson_map.items():
+            st.session_state[key] = value or ""
+
+        design = fetch_one("design_decisions", lesson_id)
+        if design:
+            st.session_state["cognitive"] = design.get("cognitive", "") or ""
+            st.session_state["strategy"] = design.get("strategy", "") or ""
+            st.session_state["engagement"] = design.get("engagement", "") or ""
+            st.session_state["assessment"] = design.get("assessment", "") or ""
+            st.session_state["inclusion_needed"] = (
+                "Yes - a specific learner/context need has been identified"
+                if design.get("inclusion_needed")
+                else "No specific adaptation need identified"
+            )
+            st.session_state["inclusion_need"] = design.get("inclusion_need", "") or ""
+            st.session_state["inclusion_support"] = design.get("inclusion_support", "") or ""
+
+        procedure = fetch_one("lesson_procedures", lesson_id)
+        if procedure:
+            st.session_state["procedure_introduction"] = procedure.get("introduction", "") or ""
+            st.session_state["procedure_development"] = procedure.get("concept_development", "") or ""
+            st.session_state["procedure_activity"] = procedure.get("learning_activity", "") or ""
+            st.session_state["procedure_assessment"] = procedure.get("assessment_during_lesson", "") or ""
+            st.session_state["procedure_closure"] = procedure.get("closure_consolidation", "") or ""
+
+        evidence = fetch_one("alignment_evidence", lesson_id)
+        if evidence:
+            for key in [
+                "cognitive_rationale", "cognition_alignment",
+                "strategy_rationale", "strategy_alignment",
+                "engagement_rationale", "engagement_alignment",
+                "inclusion_alignment", "assessment_rationale", "assessment_alignment",
+            ]:
+                st.session_state[key] = evidence.get(key, "") or ""
+
+        revision = fetch_one("revisions", lesson_id)
+        if revision:
+            st.session_state["reflection"] = revision.get("reflection", "") or ""
+            st.session_state["revision_note"] = revision.get("revision_note", "") or ""
+        return True
+    except Exception as e:
+        st.error(f"Could not open lesson: {e}")
+        return False
+
+
 def save_lesson_context():
     user = current_user()
     if not user or not supabase:
@@ -757,6 +836,7 @@ with st.sidebar:
                 "Workflow",
                 [
                     "1 · About DPAS",
+                    "My Lessons",
                     "2 · Lesson Context",
                     "3 · Design Decisions",
                     "4 · Lesson Procedure",
@@ -910,6 +990,34 @@ if active_role == "teacher_educator":
 # ---------- STUDENT WORKFLOW ----------
 if page.startswith("1"):
     render_about()
+
+elif page == "My Lessons":
+    section_header(
+        "MY LESSONS",
+        "My Lessons",
+        "Open a saved lesson to continue working, view teacher feedback, revise it, or download the final report.",
+    )
+    lessons = student_lessons()
+    if not lessons:
+        st.info("You have not created any saved lessons yet.")
+    else:
+        labels = {
+            row["id"]: f"{row.get('subject_topic') or 'Untitled lesson'} · {row.get('class_level') or ''} · {row.get('status') or 'draft'}"
+            for row in lessons
+        }
+        selected_lesson = st.selectbox(
+            "Select a saved lesson",
+            options=list(labels.keys()),
+            format_func=lambda x: labels[x],
+        )
+        selected_row = next(r for r in lessons if r["id"] == selected_lesson)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Topic", selected_row.get("subject_topic") or "Untitled")
+        c2.metric("Class / Grade", selected_row.get("class_level") or "—")
+        c3.metric("Status", selected_row.get("status") or "draft")
+        if st.button("Open Selected Lesson", type="primary", use_container_width=True):
+            if open_student_lesson(selected_lesson):
+                st.success("Lesson opened. You can now use Educator Feedback, Reflect & Revise, Analytics, or Report from the sidebar.")
 
 elif page.startswith("2"):
     section_header(
@@ -1114,7 +1222,7 @@ elif page.startswith("7"):
     )
     lesson_id = st.session_state.get("lesson_id")
     if not lesson_id:
-        st.info("No current lesson has been saved.")
+        st.info("No lesson is currently open. Go to **My Lessons**, open the lesson you submitted, and then return here to view educator feedback.")
     else:
         verification = fetch_one("educator_verification", lesson_id)
         if not verification:
