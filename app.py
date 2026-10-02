@@ -292,6 +292,53 @@ def save_lesson_context():
         return False
 
 
+def hydrate_saved_lesson():
+    lesson_id = st.session_state.get("lesson_id")
+    if not lesson_id or not supabase:
+        return
+
+    try:
+        lesson_res = supabase.table("lesson_submissions").select("*").eq("id", lesson_id).limit(1).execute()
+        if lesson_res.data:
+            lesson = lesson_res.data[0]
+            lesson_map = {
+                "subject_topic": lesson.get("subject_topic", ""),
+                "class_level": lesson.get("class_level", ""),
+                "learning_outcome": lesson.get("learning_outcome", ""),
+                "outcome_cognitive": lesson.get("outcome_cognitive", ""),
+                "lesson_purpose": lesson.get("lesson_purpose", ""),
+                "learner_context": lesson.get("learner_context", ""),
+            }
+            for key, value in lesson_map.items():
+                if key not in st.session_state or st.session_state.get(key) in (None, ""):
+                    st.session_state[key] = value
+
+        design_res = supabase.table("design_decisions").select("*").eq("lesson_id", lesson_id).limit(1).execute()
+        if design_res.data:
+            design = design_res.data[0]
+            design_map = {
+                "cognitive": design.get("cognitive", ""),
+                "strategy": design.get("strategy", ""),
+                "engagement": design.get("engagement", ""),
+                "assessment": design.get("assessment", ""),
+                "inclusion_need": design.get("inclusion_need", ""),
+                "inclusion_support": design.get("inclusion_support", ""),
+            }
+            for key, value in design_map.items():
+                if key not in st.session_state or st.session_state.get(key) in (None, ""):
+                    st.session_state[key] = value
+
+            inclusion_value = (
+                "Yes - a specific learner/context need has been identified"
+                if design.get("inclusion_needed")
+                else "No specific adaptation need identified"
+            )
+            if "inclusion_needed" not in st.session_state:
+                st.session_state["inclusion_needed"] = inclusion_value
+    except Exception:
+        pass
+
+
 def save_design_decisions():
     if not supabase or not st.session_state.get("lesson_id"):
         st.error("Save Lesson Context first.")
@@ -316,6 +363,18 @@ def save_design_decisions():
             supabase.table("design_decisions").update(payload).eq("id", existing.data[0]["id"]).execute()
         else:
             supabase.table("design_decisions").insert(payload).execute()
+
+        st.session_state["saved_cognitive"] = payload["cognitive"]
+        st.session_state["saved_strategy"] = payload["strategy"]
+        st.session_state["saved_engagement"] = payload["engagement"]
+        st.session_state["saved_assessment"] = payload["assessment"]
+        st.session_state["saved_inclusion_needed"] = (
+            "Yes - a specific learner/context need has been identified"
+            if payload["inclusion_needed"]
+            else "No specific adaptation need identified"
+        )
+        st.session_state["saved_inclusion_need"] = payload["inclusion_need"]
+        st.session_state["saved_inclusion_support"] = payload["inclusion_support"]
         return True
     except Exception as e:
         st.error(f"Could not save Design Decisions: {e}")
@@ -794,6 +853,13 @@ elif page.startswith("2"):
             st.success("Lesson Context saved. Continue to Design Decisions.")
 
 elif page.startswith("3"):
+    hydrate_saved_lesson()
+    if "inclusion_needed" not in st.session_state and "saved_inclusion_needed" in st.session_state:
+        st.session_state["inclusion_needed"] = st.session_state["saved_inclusion_needed"]
+    for key in ["cognitive", "strategy", "engagement", "assessment", "inclusion_need", "inclusion_support"]:
+        saved_key = f"saved_{key}"
+        if key not in st.session_state and saved_key in st.session_state:
+            st.session_state[key] = st.session_state[saved_key]
     section_header(
         "STEP 3 OF 8",
         "Design Decisions",
@@ -826,6 +892,13 @@ elif page.startswith("3"):
             st.success("Design Decisions saved. Continue to Alignment Evidence.")
 
 elif page.startswith("4"):
+    hydrate_saved_lesson()
+    if "inclusion_needed" not in st.session_state and "saved_inclusion_needed" in st.session_state:
+        st.session_state["inclusion_needed"] = st.session_state["saved_inclusion_needed"]
+    for key in ["cognitive", "strategy", "engagement", "assessment", "inclusion_need", "inclusion_support"]:
+        saved_key = f"saved_{key}"
+        if key not in st.session_state and saved_key in st.session_state:
+            st.session_state[key] = st.session_state[saved_key]
     load_alignment_draft()
     section_header(
         "STEP 4 OF 8",
@@ -847,9 +920,13 @@ elif page.startswith("4"):
         st.text_area("Why is this engagement mode appropriate?", key="engagement_rationale")
         st.radio("Engagement Alignment", ALIGNMENT_OPTIONS, key="engagement_alignment", horizontal=True)
     with tabs[3]:
-        if st.session_state.get("inclusion_needed", "").startswith("Yes"):
-            st.write("**Identified need:**", st.session_state.get("inclusion_need", ""))
-            st.write("**Planned support:**", st.session_state.get("inclusion_support", ""))
+        inclusion_choice = st.session_state.get(
+            "inclusion_needed",
+            st.session_state.get("saved_inclusion_needed", "")
+        )
+        if str(inclusion_choice).startswith("Yes"):
+            st.write("**Identified need:**", st.session_state.get("inclusion_need", st.session_state.get("saved_inclusion_need", "")))
+            st.write("**Planned support:**", st.session_state.get("inclusion_support", st.session_state.get("saved_inclusion_support", "")))
             st.radio("Need–Support Alignment", ALIGNMENT_OPTIONS, key="inclusion_alignment", horizontal=True)
         else:
             st.session_state["inclusion_alignment"] = "Not applicable"
