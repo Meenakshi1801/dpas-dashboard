@@ -322,6 +322,89 @@ def teacher_directory():
         return []
 
 
+def save_alignment_draft():
+    if not supabase or not st.session_state.get("lesson_id"):
+        st.error("Save the lesson first.")
+        return False
+
+    if not st.session_state.get("inclusion_needed", "").startswith("Yes"):
+        st.session_state["inclusion_alignment"] = "Not applicable"
+
+    payload = {
+        "lesson_id": st.session_state["lesson_id"],
+        "cognitive_rationale": st.session_state.get("cognitive_rationale", ""),
+        "cognition_alignment": st.session_state.get("cognition_alignment", ""),
+        "strategy_rationale": st.session_state.get("strategy_rationale", ""),
+        "strategy_alignment": st.session_state.get("strategy_alignment", ""),
+        "engagement_rationale": st.session_state.get("engagement_rationale", ""),
+        "engagement_alignment": st.session_state.get("engagement_alignment", ""),
+        "inclusion_alignment": st.session_state.get("inclusion_alignment", ""),
+        "assessment_rationale": st.session_state.get("assessment_rationale", ""),
+        "assessment_alignment": st.session_state.get("assessment_alignment", ""),
+    }
+
+    # Save PAS only when enough alignment judgments exist to calculate it meaningfully.
+    core_keys = [
+        "cognition_alignment",
+        "strategy_alignment",
+        "engagement_alignment",
+        "assessment_alignment",
+    ]
+    if all(st.session_state.get(k) for k in core_keys):
+        pas, category, _ = compute_pas()
+        payload["pas_score"] = round(pas, 2)
+        payload["alignment_category"] = category
+
+    try:
+        existing = supabase.table("alignment_evidence").select("id").eq(
+            "lesson_id", st.session_state["lesson_id"]
+        ).limit(1).execute()
+        if existing.data:
+            supabase.table("alignment_evidence").update(payload).eq(
+                "id", existing.data[0]["id"]
+            ).execute()
+        else:
+            supabase.table("alignment_evidence").insert(payload).execute()
+
+        supabase.table("lesson_submissions").update({
+            "status": "alignment draft"
+        }).eq("id", st.session_state["lesson_id"]).execute()
+        return True
+    except Exception as e:
+        st.error(f"Could not save alignment draft: {e}")
+        return False
+
+
+def load_alignment_draft():
+    lesson_id = st.session_state.get("lesson_id")
+    if not lesson_id or not supabase:
+        return
+
+    # Do not overwrite anything the student has already entered in this session.
+    keys = [
+        "cognitive_rationale", "cognition_alignment",
+        "strategy_rationale", "strategy_alignment",
+        "engagement_rationale", "engagement_alignment",
+        "inclusion_alignment", "assessment_rationale", "assessment_alignment",
+    ]
+    if any(st.session_state.get(k) for k in keys):
+        return
+
+    try:
+        result = supabase.table("alignment_evidence").select("*").eq(
+            "lesson_id", lesson_id
+        ).limit(1).execute()
+        if not result.data:
+            return
+        row = result.data[0]
+        for key in keys:
+            value = row.get(key)
+            if value not in (None, ""):
+                st.session_state[key] = value
+    except Exception:
+        pass
+
+
 def submit_self_analysis(teacher_id):
     if not supabase or not st.session_state.get("lesson_id"):
         st.error("Save the lesson first.")
@@ -714,6 +797,7 @@ elif page.startswith("3"):
             st.success("Design Decisions saved. Continue to Alignment Evidence.")
 
 elif page.startswith("4"):
+    load_alignment_draft()
     section_header(
         "STEP 4 OF 8",
         "Alignment Evidence & Submit",
@@ -747,6 +831,12 @@ elif page.startswith("4"):
         st.radio("Assessment–Outcome Alignment", ALIGNMENT_OPTIONS, key="assessment_alignment", horizontal=True)
 
     st.markdown("---")
+    draft_col, _ = st.columns([1, 2])
+    with draft_col:
+        if st.button("💾 Save Alignment Draft", use_container_width=True):
+            if save_alignment_draft():
+                st.success("Draft saved. You can move to another section and return later without losing this work.")
+
     st.markdown("### Submit to your teacher educator / supervisor")
     teachers = teacher_directory()
     if not teachers:
