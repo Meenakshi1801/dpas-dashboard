@@ -224,15 +224,28 @@ def register_account():
         st.error(f"Could not create account: {e}")
 
 
-def login_account():
+def login_account(expected_role):
     if not supabase:
         st.error("Supabase is not connected.")
         return
-    email = st.session_state.get("login_email", "").strip()
-    password = st.session_state.get("login_password", "")
+    prefix = "student" if expected_role == "student" else "teacher"
+    email = st.session_state.get(f"{prefix}_login_email", "").strip()
+    password = st.session_state.get(f"{prefix}_login_password", "")
     try:
         response = supabase.auth.sign_in_with_password({"email": email, "password": password})
         if set_auth_session(response):
+            profile = st.session_state.get("profile") or {}
+            actual_role = profile.get("role") or st.session_state.get("user", {}).get("role", "student")
+            if actual_role != expected_role:
+                try:
+                    supabase.auth.sign_out()
+                except Exception:
+                    pass
+                for key in ["access_token", "refresh_token", "user", "profile"]:
+                    st.session_state.pop(key, None)
+                role_name = "Student / Pre-service Teacher" if expected_role == "student" else "Teacher Educator"
+                st.error(f"This account is not registered as {role_name}. Please use the correct sign-in option.")
+                return
             st.success("Signed in.")
             st.rerun()
     except Exception as e:
@@ -643,14 +656,30 @@ if not user:
     if page == "About DPAS":
         render_about()
     else:
-        section_header("ACCOUNT", "Sign in or Create Account", "Students and teacher educators use separate role-based accounts.")
-        tab1, tab2 = st.tabs(["Sign in", "Create account"])
-        with tab1:
-            st.text_input("Email", key="login_email")
-            st.text_input("Password", type="password", key="login_password")
-            if st.button("Sign in", type="primary", use_container_width=True):
-                login_account()
-        with tab2:
+        section_header(
+            "ACCOUNT",
+            "Sign in or Create Account",
+            "Choose the appropriate role. Students and teacher educators use separate sign-in paths."
+        )
+
+        sign_in_tab, create_tab = st.tabs(["Sign in", "Create account"])
+
+        with sign_in_tab:
+            st.markdown("### Sign in as Student / Pre-service Teacher")
+            st.text_input("Student email", key="student_login_email")
+            st.text_input("Student password", type="password", key="student_login_password")
+            if st.button("Sign in as Student", type="primary", use_container_width=True):
+                login_account("student")
+
+            st.markdown("---")
+
+            st.markdown("### Sign in as Teacher Educator")
+            st.text_input("Teacher educator email", key="teacher_login_email")
+            st.text_input("Teacher educator password", type="password", key="teacher_login_password")
+            if st.button("Sign in as Teacher Educator", use_container_width=True):
+                login_account("teacher_educator")
+
+        with create_tab:
             st.text_input("Full name", key="reg_name")
             st.text_input("Email address", key="reg_email")
             st.text_input("Create password", type="password", key="reg_password")
