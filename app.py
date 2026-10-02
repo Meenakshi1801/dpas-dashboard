@@ -144,12 +144,21 @@ st.caption(
 engagement = st.selectbox(
     "Learner Engagement Mode",
     [
-        ("L1 - Individual", 1),
-        ("L2 - Pair", 2),
-        ("L3 - Group", 3),
-        ("L4 - Whole Class", 4)
+        "L1 - Individual",
+        "L2 - Pair",
+        "L3 - Group",
+        "L4 - Whole Class"
     ],
-    format_func=lambda option: option[0]
+    help=(
+        "Learner engagement modes are descriptive categories, not quality levels. "
+        "Individual, pair, group, and whole-class participation may each be appropriate "
+        "depending on the intended learning outcome, lesson purpose, task, and classroom context."
+    )
+)
+
+st.caption(
+    "Learner engagement mode is treated as a classification. "
+    "No mode is assumed to be inherently superior to another."
 )
 
 inclusivity = st.selectbox(
@@ -185,10 +194,10 @@ if st.button(
 ):
 
     # Provisional scoring during V2 redesign.
-    # Cognitive level and pedagogical strategy are intentionally excluded from
-    # numerical scoring because they are classifications rather than quality hierarchies.
+    # Cognitive level, pedagogical strategy, and learner engagement mode are
+    # intentionally excluded from numerical scoring because they are classifications
+    # rather than quality hierarchies.
     norm_scores = [
-        engagement[1] / 4,
         inclusivity[1] / 4,
         assessment[1] / 4
     ]
@@ -267,6 +276,12 @@ if st.button(
         "evaluated against the intended learning outcome, lesson purpose, and learner context."
     )
 
+    st.info(
+        f"Selected learner engagement mode: {engagement}. "
+        "This mode is not scored numerically in V2. Its appropriateness will later be "
+        "evaluated in relation to the planned learning activity and lesson purpose."
+    )
+
     # Feedback message
     if pas < 50:
         st.error(
@@ -288,7 +303,6 @@ if st.button(
 
     df_chart = pd.DataFrame({
         "Dimension": [
-            "Engagement",
             "Inclusivity",
             "Assessment"
         ],
@@ -304,7 +318,7 @@ if st.button(
     report_data = {
         "Cognitive Level": [cognitive],
         "Pedagogical Strategy": [strategy],
-        "Learner Engagement": [engagement[0]],
+        "Learner Engagement": [engagement],
         "Inclusivity": [inclusivity[0]],
         "Assessment Type": [assessment[0]],
         "Provisional PAS Score": [round(pas, 2)],
@@ -314,6 +328,9 @@ if st.button(
         ],
         "Strategy Scoring Note": [
             "Pedagogical strategy is descriptive and excluded from numerical scoring in V2."
+        ],
+        "Engagement Scoring Note": [
+            "Learner engagement mode is descriptive and excluded from numerical scoring in V2."
         ]
     }
 
