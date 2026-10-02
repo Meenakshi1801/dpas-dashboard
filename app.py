@@ -198,6 +198,27 @@ st.caption(
     "No mode is assumed to be inherently superior to another."
 )
 
+engagement_rationale = st.text_area(
+    "Why is this engagement mode appropriate for the planned learning activity?",
+    placeholder=(
+        "Briefly explain why individual, pair, group, or whole-class participation "
+        "fits the task, lesson purpose, and learner context."
+    )
+)
+
+engagement_alignment = st.radio(
+    "Engagement Alignment",
+    [
+        "Aligned - the engagement mode appropriately supports the planned learning activity",
+        "Partially aligned - the engagement mode is usable but may need adjustment",
+        "Review needed - the fit between the engagement mode and planned activity is unclear"
+    ],
+    help=(
+        "Judge the fit between the participation structure and the planned learning activity. "
+        "Do not rate one engagement mode as inherently better than another."
+    )
+)
+
 st.markdown("#### Inclusivity and Learner Support")
 
 inclusion_needed = st.radio(
@@ -336,10 +357,31 @@ if st.button(
         "is inherently superior."
     )
 
+    st.markdown("#### Engagement Alignment")
+
     st.info(
-        f"Selected learner engagement mode: {engagement}. "
-        "This mode is not scored numerically in V2. Its appropriateness will later be "
-        "evaluated in relation to the planned learning activity and lesson purpose."
+        f"Selected engagement mode: {engagement}\n\n"
+        f"Alignment judgment: {engagement_alignment}"
+    )
+
+    if engagement_alignment.startswith("Aligned"):
+        st.success(
+            "The selected engagement mode has been judged to appropriately support the planned learning activity."
+        )
+    elif engagement_alignment.startswith("Partially"):
+        st.warning(
+            "The engagement mode may work, but review whether the participation structure "
+            "needs adjustment for the task, lesson purpose, or learner context."
+        )
+    else:
+        st.warning(
+            "Review whether the selected engagement mode appropriately supports the planned "
+            "learning activity before finalizing the lesson plan."
+        )
+
+    st.caption(
+        "This indicator evaluates engagement–activity fit. It does not assume that individual, "
+        "pair, group, or whole-class participation is inherently superior."
     )
 
     st.info(
@@ -373,6 +415,8 @@ if st.button(
         "Strategy Rationale": [strategy_rationale],
         "Objective-Strategy Alignment": [strategy_alignment],
         "Learner Engagement": [engagement],
+        "Engagement Rationale": [engagement_rationale],
+        "Engagement Alignment": [engagement_alignment],
         "Inclusivity": [inclusivity],
         "Identified Learner/Context Need": [inclusion_need],
         "Planned Adaptation/Support": [inclusion_support],
