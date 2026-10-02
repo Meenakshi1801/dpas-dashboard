@@ -833,14 +833,14 @@ with st.sidebar:
 
             main_area = st.radio(
                 "Choose workspace",
-                ["About DPAS", "Submit New Lesson", "Look Submitted Lesson"],
+                ["About DPAS", "A · Submit New Lesson", "B · Look Submitted Lesson"],
                 label_visibility="collapsed",
             )
 
             if main_area == "About DPAS":
                 page = "1 · About DPAS"
 
-            elif main_area == "Submit New Lesson":
+            elif main_area == "A · Submit New Lesson":
                 if st.session_state.get("viewing_saved_lesson"):
                     clear_lesson_state()
                     st.session_state.pop("viewing_saved_lesson", None)
@@ -848,20 +848,20 @@ with st.sidebar:
                     st.session_state.pop("opened_subject_topic", None)
                     st.session_state.pop("opened_class_level", None)
 
-                st.markdown("#### Submit New Lesson")
+                st.markdown("#### A · Submit New Lesson")
                 page = st.radio(
                     "New lesson workflow",
                     [
-                        "2 · Lesson Context",
-                        "3 · Design Decisions",
-                        "4 · Lesson Procedure",
-                        "5 · Alignment Evidence & Submit",
+                        "A1 · Lesson Context",
+                        "A2 · Design Decisions",
+                        "A3 · Lesson Procedure",
+                        "A4 · Alignment Evidence & Submit",
                     ],
                     label_visibility="collapsed",
                 )
 
             else:
-                st.markdown("#### Look Submitted Lesson")
+                st.markdown("#### B · Look Submitted Lesson")
                 if st.session_state.get("viewing_saved_lesson"):
                     st.caption(
                         f"Opened: {st.session_state.get('opened_subject_topic','Saved lesson')} "
@@ -870,11 +870,11 @@ with st.sidebar:
                 page = st.radio(
                     "Submitted lesson workspace",
                     [
-                        "My Lessons",
-                        "6 · Analytics",
-                        "7 · Evaluator's Feedback",
-                        "8 · Reflect & Revise",
-                        "9 · Report",
+                        "B1 · My Submitted Lessons",
+                        "B2 · Analytics",
+                        "B3 · Evaluator's Feedback",
+                        "B4 · Reflect & Revise",
+                        "B5 · Report",
                     ],
                     label_visibility="collapsed",
                 )
@@ -1018,7 +1018,7 @@ if active_role == "teacher_educator":
 if page.startswith("1"):
     render_about()
 
-elif page == "My Lessons":
+elif page == "B1 · My Submitted Lessons":
     section_header(
         "MY LESSONS",
         "My Lessons",
@@ -1046,11 +1046,11 @@ elif page == "My Lessons":
             if open_student_lesson(selected_lesson):
                 st.success("Lesson opened in review mode. Use Analytics, Evaluator's Feedback, Reflect & Revise, or Report from the sidebar.")
 
-elif page.startswith("2"):
+elif page.startswith("A1"):
     if saved_lesson_view_guard():
         st.stop()
     section_header(
-        "STEP 2 OF 9",
+        "A1",
         "Lesson Context",
         "Define the lesson before making pedagogical decisions.",
     )
@@ -1067,7 +1067,7 @@ elif page.startswith("2"):
         if save_lesson_context():
             st.success("Lesson Context saved. Continue to Design Decisions.")
 
-elif page.startswith("3"):
+elif page.startswith("A2"):
     if saved_lesson_view_guard():
         st.stop()
     hydrate_saved_lesson()
@@ -1078,7 +1078,7 @@ elif page.startswith("3"):
         if key not in st.session_state and saved_key in st.session_state:
             st.session_state[key] = st.session_state[saved_key]
     section_header(
-        "STEP 3 OF 9",
+        "A2",
         "Design Decisions",
         "Choose the options you currently consider appropriate. No option is treated as universally superior.",
     )
@@ -1108,12 +1108,12 @@ elif page.startswith("3"):
         if save_design_decisions():
             st.success("Design Decisions saved. Continue to Lesson Procedure.")
 
-elif page.startswith("4"):
+elif page.startswith("A3"):
     if saved_lesson_view_guard():
         st.stop()
     load_lesson_procedure()
     section_header(
-        "STEP 4 OF 9",
+        "A3",
         "Lesson Procedure",
         "Describe how the lesson will unfold in the classroom. This gives the teacher educator concrete evidence of how your design decisions will be enacted.",
     )
@@ -1146,7 +1146,7 @@ elif page.startswith("4"):
         if save_lesson_procedure():
             st.success("Lesson Procedure saved. Continue to Alignment Evidence & Submit.")
 
-elif page.startswith("5"):
+elif page.startswith("A4"):
     if saved_lesson_view_guard():
         st.stop()
     hydrate_saved_lesson()
@@ -1159,7 +1159,7 @@ elif page.startswith("5"):
     load_lesson_procedure()
     load_alignment_draft()
     section_header(
-        "STEP 5 OF 9",
+        "A4",
         "Alignment Evidence & Submit",
         "Justify each pedagogical decision, then choose the teacher educator or supervisor who should review this lesson.",
     )
@@ -1223,9 +1223,9 @@ elif page.startswith("5"):
             if submit_self_analysis(selected_teacher):
                 st.success("Submitted successfully. This lesson now appears in your selected teacher educator's DPAS inbox.")
 
-elif page.startswith("6"):
+elif page.startswith("B2"):
     section_header(
-        "STEP 6 OF 9",
+        "B2",
         "Pedagogical Analytics",
         "Review the coherence of your lesson design.",
     )
@@ -1269,9 +1269,9 @@ elif page.startswith("6"):
                 "a particular teaching strategy, a particular engagement mode, more adaptations, or a particular assessment type."
             )
 
-elif page.startswith("7"):
+elif page.startswith("B3"):
     section_header(
-        "STEP 7 OF 9",
+        "B3",
         "Evaluator's Feedback",
         "Feedback appears here after your selected teacher educator completes verification.",
     )
@@ -1297,9 +1297,9 @@ elif page.startswith("7"):
                     st.write("**Teacher-educator verification:**", judgment or "—")
                     st.write("**Comment:**", comment or "—")
 
-elif page.startswith("8"):
+elif page.startswith("B4"):
     section_header(
-        "STEP 8 OF 9",
+        "B4",
         "Reflect & Revise",
         "Use the analytics and teacher-educator feedback to reconsider your lesson design.",
     )
@@ -1312,11 +1312,11 @@ elif page.startswith("8"):
         if save_revision():
             st.success("Reflection and revision saved.")
 
-elif page.startswith("9"):
+elif page.startswith("B5"):
     if not st.session_state.get("viewing_saved_lesson"):
         load_lesson_procedure()
     section_header(
-        "STEP 9 OF 9",
+        "B5",
         "Final Report",
         "Export a transparent record of lesson context, procedure, decisions, alignment judgments, verification, and reflection.",
     )
