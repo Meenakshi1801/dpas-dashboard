@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 import streamlit as st
+from supabase import create_client
 
 st.set_page_config(
     page_title="DPAS V2",
@@ -25,6 +26,177 @@ st.markdown("""
 .small-note {font-size:.88rem; opacity:.72;}
 </style>
 """, unsafe_allow_html=True)
+
+
+# ---------- SUPABASE ----------
+@st.cache_resource
+def get_supabase():
+    url = st.secrets.get("SUPABASE_URL", "")
+    key = st.secrets.get("SUPABASE_KEY", "")
+    if not url or not key:
+        return None
+    return create_client(url, key)
+
+supabase = get_supabase()
+
+def snapshot_state(keys):
+    """Keep non-widget copies so values survive page changes in Streamlit."""
+    for key in keys:
+        st.session_state[f"saved_{key}"] = st.session_state.get(key, "")
+
+def restore_state(keys):
+    """Restore saved values before rendering widgets on a page."""
+    for key in keys:
+        saved_key = f"saved_{key}"
+        if key not in st.session_state and saved_key in st.session_state:
+            st.session_state[key] = st.session_state[saved_key]
+
+def save_lesson_context():
+    if supabase is None:
+        st.error("Supabase is not connected. Check Streamlit app Secrets.")
+        return False
+
+    required = {
+        "Student / Participant Code": st.session_state.get("student_code", "").strip(),
+        "Subject / Topic": st.session_state.get("subject_topic", "").strip(),
+        "Class / Grade Level": st.session_state.get("class_level", "").strip(),
+        "Intended Learning Outcome": st.session_state.get("learning_outcome", "").strip(),
+    }
+    missing = [label for label, value in required.items() if not value]
+    if missing:
+        st.error("Please complete: " + ", ".join(missing))
+        return False
+
+    payload = {
+        "student_code": st.session_state["student_code"].strip(),
+        "subject_topic": st.session_state.get("subject_topic", ""),
+        "class_level": st.session_state.get("class_level", ""),
+        "learning_outcome": st.session_state.get("learning_outcome", ""),
+        "outcome_cognitive": st.session_state.get("outcome_cognitive", ""),
+        "lesson_purpose": st.session_state.get("lesson_purpose", ""),
+        "learner_context": st.session_state.get("learner_context", ""),
+        "status": "draft",
+    }
+
+    lesson_id = st.session_state.get("lesson_id")
+    try:
+        if lesson_id:
+            supabase.table("lesson_submissions").update(payload).eq("id", lesson_id).execute()
+        else:
+            result = supabase.table("lesson_submissions").insert(payload).execute()
+            st.session_state["lesson_id"] = result.data[0]["id"]
+        snapshot_state([
+            "student_code", "subject_topic", "class_level", "learning_outcome",
+            "outcome_cognitive", "lesson_purpose", "learner_context"
+        ])
+        return True
+    except Exception as e:
+        st.error(f"Could not save Lesson Context: {e}")
+        return False
+
+def save_design_decisions():
+    if supabase is None:
+        st.error("Supabase is not connected. Check Streamlit app Secrets.")
+        return False
+    lesson_id = st.session_state.get("lesson_id")
+    if not lesson_id:
+        st.error("Please save Lesson Context first.")
+        return False
+
+    inclusion_needed = st.session_state.get("inclusion_needed", "").startswith("Yes")
+    payload = {
+        "lesson_id": lesson_id,
+        "cognitive": st.session_state.get("cognitive", ""),
+        "strategy": st.session_state.get("strategy", ""),
+        "engagement": st.session_state.get("engagement", ""),
+        "inclusion_needed": inclusion_needed,
+        "inclusion_need": st.session_state.get("inclusion_need", "") if inclusion_needed else "",
+        "inclusion_support": st.session_state.get("inclusion_support", "") if inclusion_needed else "",
+        "assessment": st.session_state.get("assessment", ""),
+    }
+    try:
+        existing = supabase.table("design_decisions").select("id").eq("lesson_id", lesson_id).limit(1).execute()
+        if existing.data:
+            supabase.table("design_decisions").update(payload).eq("id", existing.data[0]["id"]).execute()
+        else:
+            supabase.table("design_decisions").insert(payload).execute()
+
+        snapshot_state([
+            "cognitive", "strategy", "engagement", "inclusion_needed",
+            "inclusion_need", "inclusion_support", "assessment"
+        ])
+        return True
+    except Exception as e:
+        st.error(f"Could not save Design Decisions: {e}")
+        return False
+
+def submit_alignment_evidence():
+    if supabase is None:
+        st.error("Supabase is not connected. Check Streamlit app Secrets.")
+        return False
+    lesson_id = st.session_state.get("lesson_id")
+    if not lesson_id:
+        st.error("Please save Lesson Context first.")
+        return False
+
+    required = [
+        "cognitive_rationale", "cognition_alignment",
+        "strategy_rationale", "strategy_alignment",
+        "engagement_rationale", "engagement_alignment",
+        "assessment_rationale", "assessment_alignment"
+    ]
+    missing = [k for k in required if not str(st.session_state.get(k, "")).strip()]
+    if missing:
+        st.error("Please complete all rationale and alignment fields before submitting.")
+        return False
+
+    if st.session_state.get("saved_inclusion_needed", "").startswith("Yes"):
+        if not st.session_state.get("inclusion_alignment"):
+            st.error("Please complete Inclusivity Alignment.")
+            return False
+    else:
+        st.session_state["inclusion_alignment"] = "Not applicable"
+
+    pas, category, _ = compute_pas()
+    payload = {
+        "lesson_id": lesson_id,
+        "cognitive_rationale": st.session_state.get("cognitive_rationale", ""),
+        "cognition_alignment": st.session_state.get("cognition_alignment", ""),
+        "strategy_rationale": st.session_state.get("strategy_rationale", ""),
+        "strategy_alignment": st.session_state.get("strategy_alignment", ""),
+        "engagement_rationale": st.session_state.get("engagement_rationale", ""),
+        "engagement_alignment": st.session_state.get("engagement_alignment", ""),
+        "inclusion_alignment": st.session_state.get("inclusion_alignment", "Not applicable"),
+        "assessment_rationale": st.session_state.get("assessment_rationale", ""),
+        "assessment_alignment": st.session_state.get("assessment_alignment", ""),
+        "pas_score": round(pas, 2),
+        "alignment_category": category,
+        "submitted_at": "now()",
+    }
+
+    try:
+        existing = supabase.table("alignment_evidence").select("id").eq("lesson_id", lesson_id).limit(1).execute()
+        # Supabase REST does not evaluate SQL expressions in JSON, so omit submitted_at
+        # and update it in a second statement using the database default only on insert.
+        payload.pop("submitted_at", None)
+        if existing.data:
+            supabase.table("alignment_evidence").update(payload).eq("id", existing.data[0]["id"]).execute()
+        else:
+            supabase.table("alignment_evidence").insert(payload).execute()
+        supabase.table("lesson_submissions").update({"status": "self-analysis submitted"}).eq("id", lesson_id).execute()
+
+        snapshot_state([
+            "cognitive_rationale", "cognition_alignment",
+            "strategy_rationale", "strategy_alignment",
+            "engagement_rationale", "engagement_alignment",
+            "inclusion_alignment", "assessment_rationale", "assessment_alignment"
+        ])
+        st.session_state["saved_pas"] = pas
+        st.session_state["saved_category"] = category
+        return True
+    except Exception as e:
+        st.error(f"Could not submit Alignment Evidence: {e}")
+        return False
 
 # ---------- CONSTANTS ----------
 COGNITIVE = [
@@ -154,10 +326,20 @@ Bareilly, Uttar Pradesh, India
 
 # ---------- PAGE 2 ----------
 elif page.startswith("2"):
+    restore_state([
+        "student_code", "subject_topic", "class_level", "learning_outcome",
+        "outcome_cognitive", "lesson_purpose", "learner_context"
+    ])
     section_header(
         "2 OF 8",
         "Lesson Context",
         "Define the lesson before making pedagogical decisions. These details provide the context for later alignment analysis."
+    )
+    st.text_input(
+        "Student / Participant Code",
+        key="student_code",
+        placeholder="e.g., PST001",
+        help="Use the same code throughout this lesson-planning cycle."
     )
     c1, c2 = st.columns(2)
     with c1:
@@ -182,9 +364,16 @@ elif page.startswith("2"):
             placeholder="Prior knowledge, language, accessibility, classroom conditions, or other relevant context."
         )
     st.info("DPAS interprets later choices in relation to this lesson context; it does not reward particular methods in isolation.")
+    if st.button("💾 Save Lesson Context", type="primary", use_container_width=True):
+        if save_lesson_context():
+            st.success("Lesson Context saved successfully. You can continue to Step 3 · Design Decisions.")
 
 # ---------- PAGE 3 ----------
 elif page.startswith("3"):
+    restore_state([
+        "cognitive", "strategy", "engagement", "inclusion_needed",
+        "inclusion_need", "inclusion_support", "assessment"
+    ])
     section_header(
         "3 OF 8",
         "Design Decisions",
@@ -218,8 +407,22 @@ elif page.startswith("3"):
         st.session_state["inclusion_need"] = ""
         st.session_state["inclusion_support"] = ""
 
+    if st.button("💾 Save Design Decisions", type="primary", use_container_width=True):
+        if save_design_decisions():
+            st.success("Design Decisions saved successfully. You can continue to Step 4 · Alignment Evidence.")
+
 # ---------- PAGE 4 ----------
 elif page.startswith("4"):
+    restore_state([
+        "student_code", "subject_topic", "class_level", "learning_outcome",
+        "outcome_cognitive", "lesson_purpose", "learner_context",
+        "cognitive", "strategy", "engagement", "inclusion_needed",
+        "inclusion_need", "inclusion_support", "assessment",
+        "cognitive_rationale", "cognition_alignment",
+        "strategy_rationale", "strategy_alignment",
+        "engagement_rationale", "engagement_alignment",
+        "inclusion_alignment", "assessment_rationale", "assessment_alignment"
+    ])
     section_header(
         "4 OF 8",
         "Alignment Evidence",
@@ -255,7 +458,7 @@ elif page.startswith("4"):
         st.radio("Engagement Alignment", ALIGNMENT_OPTIONS, key="engagement_alignment", horizontal=True)
 
     with tabs[3]:
-        if st.session_state.get("inclusion_needed", "").startswith("Yes"):
+        if str(st.session_state.get("inclusion_needed", st.session_state.get("saved_inclusion_needed", ""))).startswith("Yes"):
             st.write("**Identified need:**", st.session_state.get("inclusion_need", ""))
             st.write("**Planned support:**", st.session_state.get("inclusion_support", ""))
             st.radio("Need–Support Alignment", ALIGNMENT_OPTIONS, key="inclusion_alignment", horizontal=True)
@@ -272,6 +475,10 @@ elif page.startswith("4"):
         st.radio("Assessment–Outcome Alignment", ALIGNMENT_OPTIONS, key="assessment_alignment", horizontal=True)
 
     st.caption("Aligned = 2, Partially aligned = 1, Review needed = 0. These points summarize alignment judgments; they do not rank teaching methods.")
+
+    if st.button("📤 Submit Self-Analysis", type="primary", use_container_width=True):
+        if submit_alignment_evidence():
+            st.success("Self-analysis submitted successfully. Your data are saved in DPAS V2.")
 
 # ---------- PAGE 5 ----------
 elif page.startswith("5"):
