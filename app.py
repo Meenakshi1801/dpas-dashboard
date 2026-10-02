@@ -134,13 +134,13 @@ if page.startswith("1"):
         )
 
         st.markdown("### Conceptualized and Developed by")
-        st.markdown(
-            "**Dr. Meenakshi Dwivedi**  \\n"
-            "Assistant Professor  \\n"
-            "School of Education  \\n"
-            "Mahatma Jyotiba Phule Rohilkhand University  \\n"
-            "Bareilly, Uttar Pradesh, India"
-        )
+        st.markdown("""
+**Dr. Meenakshi Dwivedi**  
+Assistant Professor  
+School of Education  
+Mahatma Jyotiba Phule Rohilkhand University  
+Bareilly, Uttar Pradesh, India
+""")
 
     with right:
         if photo_path.exists():
