@@ -122,13 +122,23 @@ st.caption(
 strategy = st.selectbox(
     "Pedagogical Strategy",
     [
-        ("PS1 - Lecture", 1),
-        ("PS2 - Discussion", 2),
-        ("PS3 - Activity-Based", 3),
-        ("PS4 - Inquiry-Based", 4),
-        ("PS5 - Experiential/Problem-Based", 5)
+        "PS1 - Lecture",
+        "PS2 - Discussion",
+        "PS3 - Activity-Based",
+        "PS4 - Inquiry-Based",
+        "PS5 - Experiential/Problem-Based"
     ],
-    format_func=lambda option: option[0]
+    help=(
+        "Pedagogical strategies are used here as descriptive categories, "
+        "not as a quality hierarchy. Experiential/problem-based teaching is not "
+        "assumed to be inherently better than lecture, discussion, activity-based, "
+        "or inquiry-based teaching."
+    )
+)
+
+st.caption(
+    "Pedagogical strategy is treated as a classification. Its quality depends on "
+    "how well it fits the intended learning outcome, lesson purpose, content, and learner context."
 )
 
 engagement = st.selectbox(
@@ -175,10 +185,9 @@ if st.button(
 ):
 
     # Provisional scoring during V2 redesign.
-    # Cognitive level is intentionally excluded from numerical scoring because
-    # Bloom categories are classifications rather than a quality hierarchy.
+    # Cognitive level and pedagogical strategy are intentionally excluded from
+    # numerical scoring because they are classifications rather than quality hierarchies.
     norm_scores = [
-        strategy[1] / 5,
         engagement[1] / 4,
         inclusivity[1] / 4,
         assessment[1] / 4
@@ -249,7 +258,13 @@ if st.button(
     st.info(
         f"Selected cognitive category: {cognitive}. "
         "This category is not scored numerically in V2. Its alignment with the intended "
-        "learning outcome will be evaluated in the next redesign step."
+        "learning outcome will be evaluated in a later redesign step."
+    )
+
+    st.info(
+        f"Selected pedagogical strategy: {strategy}. "
+        "This strategy is not scored numerically in V2. Its appropriateness will later be "
+        "evaluated against the intended learning outcome, lesson purpose, and learner context."
     )
 
     # Feedback message
@@ -273,7 +288,6 @@ if st.button(
 
     df_chart = pd.DataFrame({
         "Dimension": [
-            "Strategy",
             "Engagement",
             "Inclusivity",
             "Assessment"
@@ -289,7 +303,7 @@ if st.button(
 
     report_data = {
         "Cognitive Level": [cognitive],
-        "Pedagogical Strategy": [strategy[0]],
+        "Pedagogical Strategy": [strategy],
         "Learner Engagement": [engagement[0]],
         "Inclusivity": [inclusivity[0]],
         "Assessment Type": [assessment[0]],
@@ -297,6 +311,9 @@ if st.button(
         "Alignment Category": [category],
         "Cognitive Scoring Note": [
             "Bloom category is descriptive and excluded from numerical scoring in V2."
+        ],
+        "Strategy Scoring Note": [
+            "Pedagogical strategy is descriptive and excluded from numerical scoring in V2."
         ]
     }
 
