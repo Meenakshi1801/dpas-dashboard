@@ -341,18 +341,64 @@ if st.button(
     use_container_width=True
 ):
 
-    # All five original dimensions have now been removed from hierarchical scoring.
-    # V2 will compute PAS only after explicit alignment logic is added in later steps.
-    pas = None
+    # -------- V2 ALIGNMENT-BASED PAS --------
+    # Equal contribution from each applicable alignment dimension:
+    # Aligned = 2, Partially aligned = 1, Review needed = 0.
+    def alignment_points(judgment):
+        if judgment.startswith("Aligned"):
+            return 2
+        if judgment.startswith("Partially"):
+            return 1
+        if judgment.startswith("Review needed"):
+            return 0
+        return None
 
-    # Display current V2 status
+    alignment_judgments = {
+        "Objective–Cognition": cognition_alignment,
+        "Objective–Strategy": strategy_alignment,
+        "Engagement": engagement_alignment,
+        "Inclusivity": inclusion_alignment,
+        "Assessment": assessment_alignment
+    }
+
+    applicable_scores = {
+        dimension: alignment_points(judgment)
+        for dimension, judgment in alignment_judgments.items()
+        if alignment_points(judgment) is not None
+    }
+
+    total_points = sum(applicable_scores.values())
+    maximum_points = 2 * len(applicable_scores)
+    pas = (total_points / maximum_points) * 100 if maximum_points else 0
+
+    if pas >= 75:
+        category = "Strong Alignment"
+    elif pas >= 50:
+        category = "Developing Alignment"
+    else:
+        category = "Alignment Needs Review"
+
     st.subheader("Results")
-    st.info(
-        "Numerical PAS is temporarily disabled in V2 because the original hierarchical "
-        "scoring has been removed. A new alignment-based PAS will be introduced only after "
-        "objective–cognition, objective–strategy, engagement, inclusivity, and "
-        "assessment-alignment rules are defined."
+
+    result_column1, result_column2 = st.columns(2)
+    with result_column1:
+        st.metric("Pedagogical Alignment Score (V2)", f"{pas:.2f}%")
+    with result_column2:
+        st.metric("Alignment Category", category)
+
+    st.caption(
+        "V2 PAS summarizes explicit alignment judgments using equal contribution from each applicable dimension. "
+        "It does not reward higher Bloom levels, more strategies, particular engagement modes, more adaptations, "
+        "or any specific assessment type."
     )
+
+    alignment_df = pd.DataFrame({
+        "Dimension": list(applicable_scores.keys()),
+        "Alignment (%)": [score / 2 * 100 for score in applicable_scores.values()]
+    }).set_index("Dimension")
+
+    st.subheader("Dimension-wise Alignment")
+    st.bar_chart(alignment_df)
 
     # Objective–Cognition Alignment
     st.markdown("#### Objective–Cognition Alignment")
@@ -512,7 +558,8 @@ if st.button(
         "Assessment Type": [assessment],
         "Assessment Rationale": [assessment_rationale],
         "Assessment Alignment": [assessment_alignment],
-        "PAS Status": ["Numerical PAS temporarily disabled during V2 redesign"],
+        "PAS Score (V2)": [round(pas, 2)],
+        "Alignment Category": [category],
         "Cognitive Scoring Note": [
             "Bloom category is descriptive and excluded from numerical scoring in V2."
         ],
