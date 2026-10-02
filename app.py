@@ -93,34 +93,69 @@ with st.sidebar:
     page = st.radio(
         "Workflow",
         [
-            "1 · Lesson Context",
-            "2 · Design Decisions",
-            "3 · Alignment Evidence",
-            "4 · Analytics",
-            "5 · Educator Verification",
-            "6 · Reflect & Revise",
-            "7 · Report"
+            "1 · About DPAS",
+            "2 · Lesson Context",
+            "3 · Design Decisions",
+            "4 · Alignment Evidence",
+            "5 · Analytics",
+            "6 · Educator Verification",
+            "7 · Reflect & Revise",
+            "8 · Report"
         ],
         label_visibility="collapsed"
     )
     st.markdown("---")
-    with st.expander("About DPAS"):
-        if photo_path.exists():
-            st.image(str(photo_path), width=115)
-        st.markdown(
-            "**Developer:** Dr. Meenakshi Dwivedi  \\n"
-            "Assistant Professor, School of Education  \\n"
-            "Mahatma Jyotiba Phule Rohilkhand University"
-        )
-        st.caption(
-            "DPAS V2 supports pedagogical reasoning through context, justification, "
-            "alignment analysis, educator verification, reflection, and revision."
-        )
+    st.caption("Use the sections above in sequence to complete the DPAS workflow.")
 
 # ---------- PAGE 1 ----------
 if page.startswith("1"):
     section_header(
-        "1 OF 7",
+        "1 OF 8",
+        "DILP-LA Pedagogical Analytics System (DPAS)",
+        "A context-sensitive pedagogical alignment and reflection system for pre-service and novice teachers."
+    )
+
+    left, right = st.columns([2.2, 1])
+    with left:
+        st.markdown("### About DPAS")
+        st.write(
+            "DPAS V2 supports pre-service and novice teachers in planning, justifying, analysing, "
+            "and revising lesson-design decisions. The system focuses on the alignment among intended "
+            "learning outcomes, cognitive demand, pedagogical strategy, learner engagement, inclusivity, "
+            "and assessment rather than treating any single method as inherently superior."
+        )
+        st.write(
+            "The workflow guides users through lesson context, design decisions, alignment evidence, "
+            "pedagogical analytics, teacher-educator verification, reflection, revision, and reporting."
+        )
+        st.info(
+            "DPAS is intended as a formative decision-support and reflection system. "
+            "Its alignment indicators support pedagogical reasoning; they are not a universal quality grade."
+        )
+
+        st.markdown("### Conceptualized and Developed by")
+        st.markdown(
+            "**Dr. Meenakshi Dwivedi**  \\n"
+            "Assistant Professor  \\n"
+            "School of Education  \\n"
+            "Mahatma Jyotiba Phule Rohilkhand University  \\n"
+            "Bareilly, Uttar Pradesh, India"
+        )
+
+    with right:
+        if photo_path.exists():
+            st.image(str(photo_path), width=250, caption="Dr. Meenakshi Dwivedi")
+        st.markdown(
+            '<div class="dpas-card"><div class="dpas-kicker">DPAS V2</div>'
+            '<div class="dpas-title">Plan → Justify → Analyse → Verify → Reflect → Revise</div>'
+            '<div class="small-note">A structured workflow for pedagogical reasoning and alignment.</div></div>',
+            unsafe_allow_html=True
+        )
+
+# ---------- PAGE 8 ----------
+elif page.startswith("8"):
+    section_header(
+        "2 OF 8",
         "Lesson Context",
         "Define the lesson before making pedagogical decisions. These details provide the context for later alignment analysis."
     )
@@ -151,7 +186,7 @@ if page.startswith("1"):
 # ---------- PAGE 2 ----------
 elif page.startswith("2"):
     section_header(
-        "2 OF 7",
+        "3 OF 8",
         "Design Decisions",
         "Choose the lesson-design options you currently consider appropriate. No option is treated as universally superior."
     )
@@ -186,7 +221,7 @@ elif page.startswith("2"):
 # ---------- PAGE 3 ----------
 elif page.startswith("3"):
     section_header(
-        "3 OF 7",
+        "4 OF 8",
         "Alignment Evidence",
         "Justify each pedagogical decision before judging its alignment. The purpose is reflective reasoning, not score maximization."
     )
@@ -241,13 +276,13 @@ elif page.startswith("3"):
 # ---------- PAGE 4 ----------
 elif page.startswith("4"):
     section_header(
-        "4 OF 7",
+        "5 OF 8",
         "Pedagogical Analytics",
         "Review the coherence of the lesson design. A high score means stronger internal alignment, not a universally 'better' teaching method."
     )
     required = ["cognition_alignment", "strategy_alignment", "engagement_alignment", "assessment_alignment"]
     if not all(k in st.session_state for k in required):
-        st.warning("Complete Step 3 · Alignment Evidence before viewing analytics.")
+        st.warning("Complete Step 4 · Alignment Evidence before viewing analytics.")
     else:
         pas, category, scores = compute_pas()
         if "initial_pas" not in st.session_state:
@@ -288,7 +323,7 @@ elif page.startswith("4"):
 # ---------- PAGE 5 ----------
 elif page.startswith("5"):
     section_header(
-        "5 OF 7",
+        "6 OF 8",
         "Teacher-Educator Verification",
         "An educator can independently verify the novice teacher's reasoning. Student and educator judgments remain separate."
     )
@@ -313,7 +348,7 @@ elif page.startswith("5"):
 # ---------- PAGE 6 ----------
 elif page.startswith("6"):
     section_header(
-        "6 OF 7",
+        "7 OF 8",
         "Reflect & Revise",
         "Use analytics and educator feedback to reconsider one or more pedagogical decisions."
     )
@@ -338,7 +373,7 @@ elif page.startswith("6"):
 # ---------- PAGE 7 ----------
 elif page.startswith("7"):
     section_header(
-        "7 OF 7",
+        "8 OF 8",
         "Final Report",
         "Export a transparent record of lesson context, decisions, rationales, alignment judgments, verification, and reflection."
     )
