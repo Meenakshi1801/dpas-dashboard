@@ -100,14 +100,23 @@ st.markdown("---")
 cognitive = st.selectbox(
     "Cognitive Level",
     [
-        ("C1 - Remember", 1),
-        ("C2 - Understand", 2),
-        ("C3 - Apply", 3),
-        ("C4 - Analyze", 4),
-        ("C5 - Evaluate", 5),
-        ("C6 - Create", 6)
+        "C1 - Remember",
+        "C2 - Understand",
+        "C3 - Apply",
+        "C4 - Analyze",
+        "C5 - Evaluate",
+        "C6 - Create"
     ],
-    format_func=lambda option: option[0]
+    help=(
+        "Bloom's cognitive levels are used here as descriptive categories, "
+        "not as a quality hierarchy. C6 is not assumed to be better than C1."
+    )
+)
+
+st.caption(
+    "Bloom's taxonomy is used as a classification framework. "
+    "The appropriateness of a cognitive level depends on the intended learning outcome "
+    "and lesson purpose."
 )
 
 strategy = st.selectbox(
@@ -160,14 +169,15 @@ st.markdown("---")
 
 # -------- CALCULATION AND VISUALIZATION --------
 if st.button(
-    "Calculate Pedagogical Alignment Score (PAS)",
+    "Calculate Provisional Pedagogical Alignment Score",
     type="primary",
     use_container_width=True
 ):
 
-    # Calculate normalized dimension scores
+    # Provisional scoring during V2 redesign.
+    # Cognitive level is intentionally excluded from numerical scoring because
+    # Bloom categories are classifications rather than a quality hierarchy.
     norm_scores = [
-        cognitive[1] / 6,
         strategy[1] / 5,
         engagement[1] / 4,
         inclusivity[1] / 4,
@@ -192,7 +202,7 @@ if st.button(
 
     with result_column1:
         st.metric(
-            label="Pedagogical Alignment Score",
+            label="Provisional Alignment Score",
             value=f"{pas:.2f}%"
         )
 
@@ -208,7 +218,7 @@ if st.button(
             mode="gauge+number",
             value=pas,
             number={"suffix": "%"},
-            title={"text": "Pedagogical Alignment Score (PAS)"},
+            title={"text": "Provisional Alignment Score"},
             gauge={
                 "axis": {"range": [0, 100]},
                 "bar": {"color": "#1F77B4"},
@@ -236,6 +246,12 @@ if st.button(
         use_container_width=True
     )
 
+    st.info(
+        f"Selected cognitive category: {cognitive}. "
+        "This category is not scored numerically in V2. Its alignment with the intended "
+        "learning outcome will be evaluated in the next redesign step."
+    )
+
     # Feedback message
     if pas < 50:
         st.error(
@@ -257,7 +273,6 @@ if st.button(
 
     df_chart = pd.DataFrame({
         "Dimension": [
-            "Cognitive",
             "Strategy",
             "Engagement",
             "Inclusivity",
@@ -273,13 +288,16 @@ if st.button(
     st.subheader("Export Results")
 
     report_data = {
-        "Cognitive Level": [cognitive[0]],
+        "Cognitive Level": [cognitive],
         "Pedagogical Strategy": [strategy[0]],
         "Learner Engagement": [engagement[0]],
         "Inclusivity": [inclusivity[0]],
         "Assessment Type": [assessment[0]],
-        "PAS Score": [round(pas, 2)],
-        "Alignment Category": [category]
+        "Provisional PAS Score": [round(pas, 2)],
+        "Alignment Category": [category],
+        "Cognitive Scoring Note": [
+            "Bloom category is descriptive and excluded from numerical scoring in V2."
+        ]
     }
 
     report_df = pd.DataFrame(report_data)
