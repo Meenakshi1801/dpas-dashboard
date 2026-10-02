@@ -223,3 +223,22 @@ using (
     where l.id = lesson_id and l.reviewer_id = auth.uid()
   )
 );
+
+
+-- Backfill profiles for accounts that existed before this migration/trigger.
+insert into public.profiles (id, user_code, email, full_name, role, designation, institution)
+select
+  u.id,
+  null,
+  u.email,
+  coalesce(u.raw_user_meta_data->>'full_name', ''),
+  coalesce(u.raw_user_meta_data->>'role', 'student'),
+  coalesce(u.raw_user_meta_data->>'designation', ''),
+  coalesce(u.raw_user_meta_data->>'institution', '')
+from auth.users u
+on conflict (id) do update set
+  email = excluded.email,
+  full_name = excluded.full_name,
+  role = excluded.role,
+  designation = excluded.designation,
+  institution = excluded.institution;
