@@ -108,10 +108,8 @@ with st.sidebar:
         if photo_path.exists():
             st.image(str(photo_path), width=115)
         st.markdown(
-            "**Developer:** Dr. Meenakshi Dwivedi  
-"
-            "Assistant Professor, School of Education  
-"
+            "**Developer:** Dr. Meenakshi Dwivedi  \\n"
+            "Assistant Professor, School of Education  \\n"
             "Mahatma Jyotiba Phule Rohilkhand University"
         )
         st.caption(
