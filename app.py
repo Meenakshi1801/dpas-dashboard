@@ -50,6 +50,52 @@ with photo_column:
 st.markdown("---")
 
 
+# -------- LESSON CONTEXT AND PURPOSE --------
+st.subheader("Lesson Context and Purpose")
+st.caption(
+    "These details provide the pedagogical context for interpreting lesson-design choices. "
+    "They do not yet affect the PAS calculation in this version."
+)
+
+subject_topic = st.text_input(
+    "Subject / Topic",
+    placeholder="e.g., Science - Photosynthesis"
+)
+
+class_level = st.text_input(
+    "Class / Grade Level",
+    placeholder="e.g., Grade 7 / B.Ed. practicum class"
+)
+
+learning_outcome = st.text_area(
+    "Intended Learning Outcome",
+    placeholder="State what learners should know, understand, or be able to do by the end of the lesson."
+)
+
+lesson_purpose = st.selectbox(
+    "Lesson Purpose",
+    [
+        "Introduce a new concept",
+        "Develop conceptual understanding",
+        "Practice / application",
+        "Inquiry / problem solving",
+        "Revision / consolidation",
+        "Assessment / diagnosis",
+        "Other"
+    ]
+)
+
+learner_context = st.text_area(
+    "Learner / Context Consideration",
+    placeholder=(
+        "Optional: note relevant learner needs, prior knowledge, language, "
+        "classroom conditions, accessibility needs, or other contextual factors."
+    )
+)
+
+st.markdown("---")
+
+
 # -------- INPUT SECTION --------
 cognitive = st.selectbox(
     "Cognitive Level",
