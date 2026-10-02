@@ -161,15 +161,48 @@ st.caption(
     "No mode is assumed to be inherently superior to another."
 )
 
-inclusivity = st.selectbox(
-    "Inclusivity Marker",
+st.markdown("#### Inclusivity and Learner Support")
+
+inclusion_needed = st.radio(
+    "Does this lesson require a specific adaptation or support for identified learner/context needs?",
     [
-        ("I1 - No Inclusion", 1),
-        ("I2 - Minimal Inclusion", 2),
-        ("I3 - Moderate Inclusion", 3),
-        ("I4 - High Inclusion", 4)
+        "No specific adaptation need identified for this lesson",
+        "Yes - a specific learner/context need has been identified"
     ],
-    format_func=lambda option: option[0]
+    help=(
+        "Inclusivity is not treated as a simple 'low-to-high' quantity. "
+        "The focus is on whether relevant learner needs are identified and appropriately addressed."
+    )
+)
+
+if inclusion_needed.startswith("Yes"):
+    inclusion_need = st.text_area(
+        "Identified learner/context need",
+        placeholder=(
+            "e.g., language support, accessibility need, prior-learning gap, "
+            "participation barrier, sensory need, or other relevant consideration."
+        )
+    )
+    inclusion_support = st.text_area(
+        "Planned adaptation / support",
+        placeholder=(
+            "Describe the specific instructional adaptation or support planned "
+            "to address the identified need."
+        )
+    )
+else:
+    inclusion_need = ""
+    inclusion_support = ""
+
+st.caption(
+    "Inclusivity is evaluated in relation to relevant learner needs and planned support. "
+    "More adaptations are not automatically better; appropriateness and relevance matter."
+)
+
+inclusivity = (
+    "Specific learner/context need identified"
+    if inclusion_needed.startswith("Yes")
+    else "No specific adaptation need identified"
 )
 
 assessment = st.selectbox(
@@ -194,11 +227,10 @@ if st.button(
 ):
 
     # Provisional scoring during V2 redesign.
-    # Cognitive level, pedagogical strategy, and learner engagement mode are
-    # intentionally excluded from numerical scoring because they are classifications
-    # rather than quality hierarchies.
+    # Cognitive level, pedagogical strategy, learner engagement mode, and inclusivity
+    # are intentionally excluded from numerical scoring while their alignment logic
+    # is being redesigned.
     norm_scores = [
-        inclusivity[1] / 4,
         assessment[1] / 4
     ]
 
@@ -282,6 +314,18 @@ if st.button(
         "evaluated in relation to the planned learning activity and lesson purpose."
     )
 
+    if inclusion_needed.startswith("Yes"):
+        st.info(
+            "Inclusivity note: a specific learner/context need has been identified. "
+            "The planned support is recorded for later appropriateness-based evaluation; "
+            "it is not scored by quantity or intensity."
+        )
+    else:
+        st.info(
+            "Inclusivity note: no specific adaptation need was identified for this lesson. "
+            "This is not treated as a lower-quality choice by itself."
+        )
+
     # Feedback message
     if pas < 50:
         st.error(
@@ -303,7 +347,6 @@ if st.button(
 
     df_chart = pd.DataFrame({
         "Dimension": [
-            "Inclusivity",
             "Assessment"
         ],
         "Alignment (%)": percentages
@@ -319,7 +362,9 @@ if st.button(
         "Cognitive Level": [cognitive],
         "Pedagogical Strategy": [strategy],
         "Learner Engagement": [engagement],
-        "Inclusivity": [inclusivity[0]],
+        "Inclusivity": [inclusivity],
+        "Identified Learner/Context Need": [inclusion_need],
+        "Planned Adaptation/Support": [inclusion_support],
         "Assessment Type": [assessment[0]],
         "Provisional PAS Score": [round(pas, 2)],
         "Alignment Category": [category],
@@ -331,6 +376,10 @@ if st.button(
         ],
         "Engagement Scoring Note": [
             "Learner engagement mode is descriptive and excluded from numerical scoring in V2."
+        ],
+        "Inclusivity Scoring Note": [
+            "Inclusivity is recorded through identified need and planned support, "
+            "and is excluded from numerical scoring during V2 redesign."
         ]
     }
 
