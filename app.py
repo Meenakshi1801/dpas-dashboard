@@ -829,29 +829,48 @@ with st.sidebar:
                 label_visibility="collapsed",
             )
         else:
-            page = st.radio(
-                "Workflow",
-                [
-                    "1 · About DPAS",
-                    "My Lessons",
-                    "2 · Lesson Context",
-                    "3 · Design Decisions",
-                    "4 · Lesson Procedure",
-                    "5 · Alignment Evidence & Submit",
-                    "6 · Analytics",
-                    "7 · Educator Feedback",
-                    "8 · Reflect & Revise",
-                    "9 · Report",
-                ],
-                label_visibility="collapsed",
-            )
+            if st.session_state.get("viewing_saved_lesson"):
+                page = st.radio(
+                    "Workflow",
+                    [
+                        "1 · About DPAS",
+                        "My Lessons",
+                        "6 · Analytics",
+                        "7 · Educator Feedback",
+                        "8 · Reflect & Revise",
+                        "9 · Report",
+                    ],
+                    label_visibility="collapsed",
+                )
+                st.caption(
+                    f"Opened lesson: {st.session_state.get('opened_subject_topic','Saved lesson')} "
+                    f"· {st.session_state.get('opened_lesson_status','')}"
+                )
+            else:
+                page = st.radio(
+                    "Workflow",
+                    [
+                        "1 · About DPAS",
+                        "My Lessons",
+                        "2 · Lesson Context",
+                        "3 · Design Decisions",
+                        "4 · Lesson Procedure",
+                        "5 · Alignment Evidence & Submit",
+                        "6 · Analytics",
+                        "7 · Educator Feedback",
+                        "8 · Reflect & Revise",
+                        "9 · Report",
+                    ],
+                    label_visibility="collapsed",
+                )
+
             if st.button("＋ Start New Lesson", use_container_width=True):
                 clear_lesson_state()
                 st.session_state.pop("viewing_saved_lesson", None)
                 st.session_state.pop("opened_lesson_status", None)
                 st.session_state.pop("opened_subject_topic", None)
                 st.session_state.pop("opened_class_level", None)
-                st.success("Ready for a new lesson.")
+                st.rerun()
 
         st.markdown("---")
         if st.button("Sign out", use_container_width=True):
@@ -1018,7 +1037,7 @@ elif page == "My Lessons":
         c3.metric("Status", selected_row.get("status") or "draft")
         if st.button("Open Selected Lesson", type="primary", use_container_width=True):
             if open_student_lesson(selected_lesson):
-                st.success("Lesson opened. You can now use Educator Feedback, Reflect & Revise, Analytics, or Report from the sidebar.")
+                st.success("Lesson opened in review mode. Use Analytics, Educator Feedback, Reflect & Revise, or Report from the sidebar.")
 
 elif page.startswith("2"):
     if saved_lesson_view_guard():
