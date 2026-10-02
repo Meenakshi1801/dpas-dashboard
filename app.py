@@ -152,8 +152,8 @@ if page.startswith("1"):
             unsafe_allow_html=True
         )
 
-# ---------- PAGE 8 ----------
-elif page.startswith("8"):
+# ---------- PAGE 2 ----------
+elif page.startswith("2"):
     section_header(
         "2 OF 8",
         "Lesson Context",
@@ -183,8 +183,8 @@ elif page.startswith("8"):
         )
     st.info("DPAS interprets later choices in relation to this lesson context; it does not reward particular methods in isolation.")
 
-# ---------- PAGE 2 ----------
-elif page.startswith("2"):
+# ---------- PAGE 3 ----------
+elif page.startswith("3"):
     section_header(
         "3 OF 8",
         "Design Decisions",
@@ -218,8 +218,8 @@ elif page.startswith("2"):
         st.session_state["inclusion_need"] = ""
         st.session_state["inclusion_support"] = ""
 
-# ---------- PAGE 3 ----------
-elif page.startswith("3"):
+# ---------- PAGE 4 ----------
+elif page.startswith("4"):
     section_header(
         "4 OF 8",
         "Alignment Evidence",
@@ -273,8 +273,8 @@ elif page.startswith("3"):
 
     st.caption("Aligned = 2, Partially aligned = 1, Review needed = 0. These points summarize alignment judgments; they do not rank teaching methods.")
 
-# ---------- PAGE 4 ----------
-elif page.startswith("4"):
+# ---------- PAGE 5 ----------
+elif page.startswith("5"):
     section_header(
         "5 OF 8",
         "Pedagogical Analytics",
@@ -320,8 +320,8 @@ elif page.startswith("4"):
 
         st.info("Why this result? PAS is the equal-contribution summary of the applicable alignment judgments. No Bloom level, strategy, engagement mode, adaptation count, or assessment type receives an inherent quality advantage.")
 
-# ---------- PAGE 5 ----------
-elif page.startswith("5"):
+# ---------- PAGE 6 ----------
+elif page.startswith("6"):
     section_header(
         "6 OF 8",
         "Teacher-Educator Verification",
@@ -345,8 +345,8 @@ elif page.startswith("5"):
             st.radio("Educator verification", VERIFY_OPTIONS, key=verify_key, horizontal=True)
             st.text_area("Educator comment", key=f"{verify_key}_comment")
 
-# ---------- PAGE 6 ----------
-elif page.startswith("6"):
+# ---------- PAGE 7 ----------
+elif page.startswith("7"):
     section_header(
         "7 OF 8",
         "Reflect & Revise",
@@ -370,8 +370,8 @@ elif page.startswith("6"):
         c3.metric("Change", f"{current_pas - initial_pas:+.1f} points")
         st.caption("Return to Design Decisions or Alignment Evidence to revise choices; the current PAS will update when you revisit Analytics.")
 
-# ---------- PAGE 7 ----------
-elif page.startswith("7"):
+# ---------- PAGE 8 ----------
+elif page.startswith("8"):
     section_header(
         "8 OF 8",
         "Final Report",
