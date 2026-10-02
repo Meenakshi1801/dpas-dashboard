@@ -1189,14 +1189,18 @@ elif page.startswith("5"):
                 st.success("Submitted successfully. This lesson now appears in your selected teacher educator's DPAS inbox.")
 
 elif page.startswith("6"):
+    hydrate_saved_lesson()
+    load_alignment_draft()
     section_header(
         "STEP 6 OF 9",
         "Pedagogical Analytics",
         "Review the coherence of your lesson design.",
     )
     required = ["cognition_alignment", "strategy_alignment", "engagement_alignment", "assessment_alignment"]
-    if not all(st.session_state.get(k) for k in required):
-        st.warning("Complete Alignment Evidence first.")
+    if not st.session_state.get("lesson_id"):
+        st.info("No lesson is currently open. Go to **My Lessons**, open a saved lesson, and then return to Analytics.")
+    elif not all(st.session_state.get(k) for k in required):
+        st.warning("The selected lesson does not yet contain complete Alignment Evidence.")
     else:
         pas, category, scores = compute_pas()
         m1, m2, m3 = st.columns(3)
