@@ -248,9 +248,22 @@ if inclusion_needed.startswith("Yes"):
             "to address the identified need."
         )
     )
+    inclusion_alignment = st.radio(
+        "Inclusivity Alignment",
+        [
+            "Aligned - the planned support appropriately addresses the identified need",
+            "Partially aligned - the support may help but requires refinement",
+            "Review needed - the planned support does not clearly address the identified need"
+        ],
+        help=(
+            "Judge the fit between the identified learner/context need and the planned support. "
+            "Do not rate the number or intensity of adaptations."
+        )
+    )
 else:
     inclusion_need = ""
     inclusion_support = ""
+    inclusion_alignment = "Not applicable - no specific adaptation need identified"
 
 st.caption(
     "Inclusivity is evaluated in relation to relevant learner needs and planned support. "
@@ -390,17 +403,37 @@ if st.button(
         "be evaluated against the intended learning outcome and lesson purpose."
     )
 
+    st.markdown("#### Inclusivity Alignment")
+
     if inclusion_needed.startswith("Yes"):
         st.info(
-            "Inclusivity note: a specific learner/context need has been identified. "
-            "The planned support is recorded for later appropriateness-based evaluation; "
-            "it is not scored by quantity or intensity."
+            f"Identified need: {inclusion_need or 'Not entered'}\n\n"
+            f"Planned support: {inclusion_support or 'Not entered'}\n\n"
+            f"Alignment judgment: {inclusion_alignment}"
         )
+        if inclusion_alignment.startswith("Aligned"):
+            st.success(
+                "The planned support has been judged to appropriately address the identified learner/context need."
+            )
+        elif inclusion_alignment.startswith("Partially"):
+            st.warning(
+                "The planned support may address the need only partially. "
+                "Review whether the adaptation should be refined."
+            )
+        else:
+            st.warning(
+                "Review the connection between the identified need and the planned support "
+                "before finalizing the lesson plan."
+            )
     else:
         st.info(
-            "Inclusivity note: no specific adaptation need was identified for this lesson. "
+            "No specific adaptation need was identified for this lesson. "
             "This is not treated as a lower-quality choice by itself."
         )
+
+    st.caption(
+        "This indicator evaluates need–support fit rather than the amount of inclusion activity."
+    )
 
     # Export results
     st.markdown("---")
@@ -420,6 +453,7 @@ if st.button(
         "Inclusivity": [inclusivity],
         "Identified Learner/Context Need": [inclusion_need],
         "Planned Adaptation/Support": [inclusion_support],
+        "Inclusivity Alignment": [inclusion_alignment],
         "Assessment Type": [assessment],
         "PAS Status": ["Numerical PAS temporarily disabled during V2 redesign"],
         "Cognitive Scoring Note": [
