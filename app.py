@@ -133,13 +133,38 @@ def load_profile(user_id):
 def set_auth_session(auth_response):
     if not auth_response or not auth_response.session:
         return False
+
+    metadata = auth_response.user.user_metadata or {}
+    metadata_role = metadata.get("role", "student")
+
     st.session_state["access_token"] = auth_response.session.access_token
     st.session_state["refresh_token"] = auth_response.session.refresh_token
     st.session_state["user"] = {
         "id": auth_response.user.id,
         "email": auth_response.user.email,
+        "role": metadata_role,
+        "full_name": metadata.get("full_name", ""),
+        "designation": metadata.get("designation", ""),
+        "institution": metadata.get("institution", ""),
     }
+
     profile = load_profile(auth_response.user.id)
+
+    # Keep the public profile synchronized with the role chosen at registration.
+    # This also repairs older accounts that were accidentally stored as students.
+    if profile and metadata_role and profile.get("role") != metadata_role:
+        try:
+            supabase.table("profiles").update({
+                "role": metadata_role,
+                "full_name": metadata.get("full_name", profile.get("full_name", "")),
+                "designation": metadata.get("designation", profile.get("designation", "")),
+                "institution": metadata.get("institution", profile.get("institution", "")),
+                "email": auth_response.user.email,
+            }).eq("id", auth_response.user.id).execute()
+            profile = load_profile(auth_response.user.id)
+        except Exception:
+            pass
+
     if profile:
         st.session_state["profile"] = profile
     return True
@@ -495,8 +520,9 @@ with st.sidebar:
             if profile:
                 st.session_state["profile"] = profile
 
-        role = (profile or {}).get("role", "student")
-        st.success(f"Signed in as **{(profile or {}).get('full_name', user.get('email',''))}**")
+        role = (profile or {}).get("role") or user.get("role", "student")
+        display_name = (profile or {}).get("full_name") or user.get("full_name") or user.get("email", "")
+        st.success(f"Signed in as **{display_name}**")
         st.caption("Teacher Educator" if role == "teacher_educator" else "Pre-service / Novice Teacher")
 
         if role == "teacher_educator":
@@ -559,7 +585,9 @@ if not user:
 
 
 # ---------- TEACHER EDUCATOR ----------
-if (profile or {}).get("role") == "teacher_educator":
+active_role = (profile or {}).get("role") or (user or {}).get("role", "student")
+
+if active_role == "teacher_educator":
     if page == "About DPAS":
         render_about()
     else:
