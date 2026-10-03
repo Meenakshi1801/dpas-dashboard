@@ -438,7 +438,9 @@ def save_design_decisions():
             "lesson_id", st.session_state["lesson_id"]
         ).limit(1).execute()
         if existing.data:
-            supabase.table("design_decisions").update(payload).eq("id", existing.data[0]["id"]).execute()
+            supabase.table("design_decisions").update(payload).eq(
+                "lesson_id", st.session_state["lesson_id"]
+            ).execute()
         else:
             supabase.table("design_decisions").insert(payload).execute()
 
@@ -513,7 +515,7 @@ def save_lesson_procedure():
         ).limit(1).execute()
         if existing.data:
             supabase.table("lesson_procedures").update(payload).eq(
-                "id", existing.data[0]["id"]
+                "lesson_id", st.session_state["lesson_id"]
             ).execute()
         else:
             supabase.table("lesson_procedures").insert(payload).execute()
@@ -570,12 +572,33 @@ def save_alignment_draft():
         payload["alignment_category"] = category
 
     try:
+        # Synchronize the exact design choices visible at the moment of submission.
+        design_payload = {
+            "lesson_id": st.session_state["lesson_id"],
+            "cognitive": st.session_state.get("cognitive", ""),
+            "strategy": st.session_state.get("strategy", ""),
+            "engagement": st.session_state.get("engagement", ""),
+            "inclusion_needed": st.session_state.get("inclusion_needed", "").startswith("Yes"),
+            "inclusion_need": st.session_state.get("inclusion_need", ""),
+            "inclusion_support": st.session_state.get("inclusion_support", ""),
+            "assessment": st.session_state.get("assessment", ""),
+        }
+        existing_design = supabase.table("design_decisions").select("id").eq(
+            "lesson_id", st.session_state["lesson_id"]
+        ).execute()
+        if existing_design.data:
+            supabase.table("design_decisions").update(design_payload).eq(
+                "lesson_id", st.session_state["lesson_id"]
+            ).execute()
+        else:
+            supabase.table("design_decisions").insert(design_payload).execute()
+
         existing = supabase.table("alignment_evidence").select("id").eq(
             "lesson_id", st.session_state["lesson_id"]
         ).limit(1).execute()
         if existing.data:
             supabase.table("alignment_evidence").update(payload).eq(
-                "id", existing.data[0]["id"]
+                "lesson_id", st.session_state["lesson_id"]
             ).execute()
         else:
             supabase.table("alignment_evidence").insert(payload).execute()
@@ -660,7 +683,9 @@ def submit_self_analysis(teacher_id):
             "lesson_id", st.session_state["lesson_id"]
         ).limit(1).execute()
         if existing.data:
-            supabase.table("alignment_evidence").update(payload).eq("id", existing.data[0]["id"]).execute()
+            supabase.table("alignment_evidence").update(payload).eq(
+                "lesson_id", st.session_state["lesson_id"]
+            ).execute()
         else:
             supabase.table("alignment_evidence").insert(payload).execute()
 
@@ -690,8 +715,23 @@ def educator_inbox():
 
 def fetch_one(table, lesson_id):
     try:
-        result = supabase.table(table).select("*").eq("lesson_id", lesson_id).limit(1).execute()
-        return result.data[0] if result.data else {}
+        result = supabase.table(table).select("*").eq("lesson_id", lesson_id).execute()
+        rows = result.data or []
+        if not rows:
+            return {}
+
+        # Prefer the newest row if legacy testing created duplicates.
+        for timestamp_key in ("updated_at", "created_at"):
+            if any(row.get(timestamp_key) for row in rows):
+                rows = sorted(
+                    rows,
+                    key=lambda row: str(row.get(timestamp_key) or ""),
+                    reverse=True,
+                )
+                return rows[0]
+
+        # Fallback: use the most recently returned row.
+        return rows[-1]
     except Exception:
         return {}
 
@@ -717,7 +757,9 @@ def submit_educator_verification(lesson_id):
             "lesson_id", lesson_id
         ).limit(1).execute()
         if existing.data:
-            supabase.table("educator_verification").update(payload).eq("id", existing.data[0]["id"]).execute()
+            supabase.table("educator_verification").update(payload).eq(
+                "lesson_id", lesson_id
+            ).execute()
         else:
             supabase.table("educator_verification").insert(payload).execute()
         supabase.table("lesson_submissions").update(
@@ -733,22 +775,29 @@ def save_revision():
     if not supabase or not st.session_state.get("lesson_id"):
         st.error("No current lesson.")
         return False
-    pas, category, _ = compute_pas()
+
+    reflection = st.session_state.get("reflection", "").strip()
+    revision_note = st.session_state.get("revision_note", "").strip()
+    if not reflection and not revision_note:
+        st.error("Please enter your reflection or planned revision before saving.")
+        return False
+
     payload = {
         "lesson_id": st.session_state["lesson_id"],
-        "reflection": st.session_state.get("reflection", ""),
-        "revision_note": st.session_state.get("revision_note", ""),
-        "revised_pas": round(pas, 2),
-        "revised_category": category,
+        "reflection": reflection,
+        "revision_note": revision_note,
     }
     try:
         existing = supabase.table("revisions").select("id").eq(
             "lesson_id", st.session_state["lesson_id"]
-        ).limit(1).execute()
+        ).execute()
         if existing.data:
-            supabase.table("revisions").update(payload).eq("id", existing.data[0]["id"]).execute()
+            supabase.table("revisions").update(payload).eq(
+                "lesson_id", st.session_state["lesson_id"]
+            ).execute()
         else:
             supabase.table("revisions").insert(payload).execute()
+
         supabase.table("lesson_submissions").update(
             {"status": "revision submitted"}
         ).eq("id", st.session_state["lesson_id"]).execute()
@@ -1373,72 +1422,190 @@ elif page.startswith("B2"):
                     "It is not converted into the student's PAS or combined into a single quality score."
                 )
 
+elif page.startswith("B3"):
+    section_header(
+        "B3",
+        "Reflect & Revise",
+        "Review the teacher educator's verification and use it to reflect on and revise your lesson design.",
+    )
+    lesson_id = st.session_state.get("lesson_id")
+    if not lesson_id:
+        st.info("No submitted lesson is currently open. Go to **B1 · My Submitted Lessons** and open a lesson first.")
+    else:
+        verification = fetch_one("educator_verification", lesson_id)
+        existing_revision = fetch_one("revisions", lesson_id)
+
+        if verification:
+            st.markdown("### Teacher-Educator Feedback to Consider")
+            feedback_rows = [
+                ("Objective–Cognition", verification.get("cognition_verification"), verification.get("cognition_comment")),
+                ("Objective–Strategy", verification.get("strategy_verification"), verification.get("strategy_comment")),
+                ("Engagement", verification.get("engagement_verification"), verification.get("engagement_comment")),
+                ("Inclusivity", verification.get("inclusion_verification"), verification.get("inclusion_comment")),
+                ("Assessment", verification.get("assessment_verification"), verification.get("assessment_comment")),
+            ]
+            for dimension, judgment, comment in feedback_rows:
+                if judgment or comment:
+                    with st.expander(dimension, expanded=(judgment != "Concur")):
+                        st.write("**Teacher verification:**", judgment or "—")
+                        st.write("**Teacher comment:**", comment or "—")
+
+            flagged = [
+                dimension for dimension, judgment, _ in feedback_rows
+                if judgment in ("Partially concur", "Needs reconsideration")
+            ]
+            if flagged:
+                st.warning(
+                    "Priority areas for reflection: " + ", ".join(flagged)
+                )
+            else:
+                st.success(
+                    "The teacher educator concurred with the submitted alignment judgments. "
+                    "You may still reflect on how the lesson could be strengthened further."
+                )
+        else:
+            st.info("Teacher-educator verification has not yet been submitted for this lesson.")
+
+        if existing_revision and "reflection" not in st.session_state:
+            st.session_state["reflection"] = existing_revision.get("reflection", "") or ""
+        if existing_revision and "revision_note" not in st.session_state:
+            st.session_state["revision_note"] = existing_revision.get("revision_note", "") or ""
+
+        st.markdown("### Your Reflection")
+        st.text_area(
+            "What did you learn from comparing your own judgment with the teacher educator's evaluation?",
+            key="reflection",
+            height=130,
+        )
+        st.text_area(
+            "What would you retain, modify, or strengthen in this lesson plan, and why?",
+            key="revision_note",
+            height=130,
+        )
+        if st.button("💾 Save Reflection & Revision", type="primary", use_container_width=True):
+            if save_revision():
+                st.success("Reflection and revision saved successfully.")
+
 elif page.startswith("B4"):
-    if not st.session_state.get("viewing_saved_lesson"):
-        load_lesson_procedure()
     section_header(
         "B4",
         "Final Report",
-        "Export a transparent record of lesson context, procedure, decisions, alignment judgments, verification, and reflection.",
+        "View and export the complete submitted lesson, self-alignment analysis, teacher evaluation, and reflective revision.",
     )
-    if not st.session_state.get("lesson_id"):
-        st.info("Complete and save a lesson first.")
+
+    lesson_id = st.session_state.get("lesson_id")
+    if not lesson_id:
+        st.info("No submitted lesson is currently open. Go to **B1 · My Submitted Lessons** and open a lesson first.")
     else:
-        lesson_id = st.session_state["lesson_id"]
-        if st.session_state.get("viewing_saved_lesson"):
-            lesson = supabase.table("lesson_submissions").select("*").eq("id", lesson_id).limit(1).execute().data[0]
-            design = fetch_one("design_decisions", lesson_id)
-            procedure = fetch_one("lesson_procedures", lesson_id)
-            evidence = fetch_one("alignment_evidence", lesson_id)
-            revision = fetch_one("revisions", lesson_id)
-            pas, category, _ = compute_pas_from_evidence(evidence)
-            report = {
-                "Student": (profile or {}).get("full_name", ""),
-                "Subject / Topic": lesson.get("subject_topic", ""),
-                "Class / Grade": lesson.get("class_level", ""),
-                "Intended Learning Outcome": lesson.get("learning_outcome", ""),
-                "Lesson Purpose": lesson.get("lesson_purpose", ""),
-                "Planned Cognitive Demand": design.get("cognitive", ""),
-                "Pedagogical Strategy": design.get("strategy", ""),
-                "Learner Engagement": design.get("engagement", ""),
-                "Assessment Type": design.get("assessment", ""),
-                "Introduction / Set Induction": procedure.get("introduction", ""),
-                "Concept Development": procedure.get("concept_development", ""),
-                "Learning Activity / Practice": procedure.get("learning_activity", ""),
-                "Assessment During Lesson": procedure.get("assessment_during_lesson", ""),
-                "Closure / Consolidation": procedure.get("closure_consolidation", ""),
-                "Student Aligned Dimensions": sum(v == "Aligned" for v in evidence.values() if isinstance(v, str)),
-                "Reflection": revision.get("reflection", ""),
-                "Revision Note": revision.get("revision_note", ""),
-            }
+        lesson_result = supabase.table("lesson_submissions").select("*").eq(
+            "id", lesson_id
+        ).limit(1).execute()
+        lesson = lesson_result.data[0] if lesson_result.data else {}
+        design = fetch_one("design_decisions", lesson_id)
+        procedure = fetch_one("lesson_procedures", lesson_id)
+        evidence = fetch_one("alignment_evidence", lesson_id)
+        verification = fetch_one("educator_verification", lesson_id)
+        revision = fetch_one("revisions", lesson_id)
+
+        st.markdown("### 1. Lesson Context")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.write("**Student:**", (profile or {}).get("full_name", ""))
+            st.write("**Subject / Topic:**", lesson.get("subject_topic", "") or "—")
+            st.write("**Class / Grade:**", lesson.get("class_level", "") or "—")
+            st.write("**Lesson Purpose:**", lesson.get("lesson_purpose", "") or "—")
+        with c2:
+            st.write("**Intended Learning Outcome:**", lesson.get("learning_outcome", "") or "—")
+            st.write("**Primary Cognitive Demand of Outcome:**", lesson.get("outcome_cognitive", "") or "—")
+            st.write("**Learner / Context Consideration:**", lesson.get("learner_context", "") or "—")
+
+        st.markdown("### 2. Submitted Design Decisions")
+        d1, d2 = st.columns(2)
+        with d1:
+            st.write("**Planned Cognitive Demand:**", design.get("cognitive", "") or "—")
+            st.write("**Learner Engagement Mode:**", design.get("engagement", "") or "—")
+            st.write(
+                "**Inclusivity / Learner Support:**",
+                "Specific learner/context need identified" if design.get("inclusion_needed") else "No specific adaptation need identified",
+            )
+        with d2:
+            st.write("**Pedagogical Strategy:**", design.get("strategy", "") or "—")
+            st.write("**Assessment Type:**", design.get("assessment", "") or "—")
+        if design.get("inclusion_needed"):
+            st.write("**Identified learner/context need:**", design.get("inclusion_need", "") or "—")
+            st.write("**Planned adaptation / support:**", design.get("inclusion_support", "") or "—")
+
+        st.markdown("### 3. Lesson Procedure")
+        st.write("**Introduction / Set Induction:**", procedure.get("introduction", "") or "—")
+        st.write("**Concept Development / Teacher–Learner Interaction:**", procedure.get("concept_development", "") or "—")
+        st.write("**Learning Activity / Practice:**", procedure.get("learning_activity", "") or "—")
+        st.write("**Assessment During the Lesson:**", procedure.get("assessment_during_lesson", "") or "—")
+        st.write("**Closure / Consolidation:**", procedure.get("closure_consolidation", "") or "—")
+
+        st.markdown("### 4. Student Self-Alignment Evidence")
+        self_rows = [
+            ("Objective–Cognition", evidence.get("cognition_alignment"), evidence.get("cognitive_rationale")),
+            ("Objective–Strategy", evidence.get("strategy_alignment"), evidence.get("strategy_rationale")),
+            ("Engagement", evidence.get("engagement_alignment"), evidence.get("engagement_rationale")),
+            ("Inclusivity", evidence.get("inclusion_alignment"), ""),
+            ("Assessment", evidence.get("assessment_alignment"), evidence.get("assessment_rationale")),
+        ]
+        for dimension, judgment, rationale in self_rows:
+            if judgment and judgment != "Not applicable":
+                with st.expander(dimension):
+                    st.write("**Student judgment:**", judgment)
+                    if rationale:
+                        st.write("**Student rationale:**", rationale)
+
+        st.markdown("### 5. Teacher-Educator Evaluation")
+        if verification:
+            verification_rows = [
+                ("Objective–Cognition", verification.get("cognition_verification"), verification.get("cognition_comment")),
+                ("Objective–Strategy", verification.get("strategy_verification"), verification.get("strategy_comment")),
+                ("Engagement", verification.get("engagement_verification"), verification.get("engagement_comment")),
+                ("Inclusivity", verification.get("inclusion_verification"), verification.get("inclusion_comment")),
+                ("Assessment", verification.get("assessment_verification"), verification.get("assessment_comment")),
+            ]
+            for dimension, judgment, comment in verification_rows:
+                if judgment or comment:
+                    with st.expander(dimension, expanded=True):
+                        st.write("**Teacher verification:**", judgment or "—")
+                        st.write("**Teacher comment:**", comment or "—")
         else:
-            pas, category, _ = compute_pas()
-            report = {
+            st.info("Teacher-educator evaluation has not yet been submitted.")
+
+        st.markdown("### 6. Reflection & Revision")
+        if revision:
+            st.write("**Student reflection:**", revision.get("reflection", "") or "—")
+            st.write("**Planned revision / strengthening:**", revision.get("revision_note", "") or "—")
+        else:
+            st.caption("No reflection or revision has been saved yet.")
+
+        export_rows = [{
             "Student": (profile or {}).get("full_name", ""),
-            "Subject / Topic": st.session_state.get("subject_topic", ""),
-            "Class / Grade": st.session_state.get("class_level", ""),
-            "Intended Learning Outcome": st.session_state.get("learning_outcome", ""),
-            "Lesson Purpose": st.session_state.get("lesson_purpose", ""),
-            "Planned Cognitive Demand": st.session_state.get("cognitive", ""),
-            "Pedagogical Strategy": st.session_state.get("strategy", ""),
-            "Learner Engagement": st.session_state.get("engagement", ""),
-            "Assessment Type": st.session_state.get("assessment", ""),
-            "Introduction / Set Induction": st.session_state.get("procedure_introduction", ""),
-            "Concept Development": st.session_state.get("procedure_development", ""),
-            "Learning Activity / Practice": st.session_state.get("procedure_activity", ""),
-            "Assessment During Lesson": st.session_state.get("procedure_assessment", ""),
-            "Closure / Consolidation": st.session_state.get("procedure_closure", ""),
-            "Student Alignment Summary": "Descriptive categorical profile; no percentage score",
-            "Reflection": st.session_state.get("reflection", ""),
-            "Revision Note": st.session_state.get("revision_note", ""),
-        }
-        preview = pd.DataFrame([report])
-        st.dataframe(preview, use_container_width=True)
-        csv = preview.to_csv(index=False).encode("utf-8")
+            "Subject / Topic": lesson.get("subject_topic", ""),
+            "Class / Grade": lesson.get("class_level", ""),
+            "Intended Learning Outcome": lesson.get("learning_outcome", ""),
+            "Lesson Purpose": lesson.get("lesson_purpose", ""),
+            "Planned Cognitive Demand": design.get("cognitive", ""),
+            "Pedagogical Strategy": design.get("strategy", ""),
+            "Learner Engagement": design.get("engagement", ""),
+            "Assessment Type": design.get("assessment", ""),
+            "Inclusivity Need": design.get("inclusion_need", ""),
+            "Inclusivity Support": design.get("inclusion_support", ""),
+            "Introduction": procedure.get("introduction", ""),
+            "Concept Development": procedure.get("concept_development", ""),
+            "Learning Activity": procedure.get("learning_activity", ""),
+            "Assessment During Lesson": procedure.get("assessment_during_lesson", ""),
+            "Closure": procedure.get("closure_consolidation", ""),
+            "Reflection": revision.get("reflection", "") if revision else "",
+            "Revision Note": revision.get("revision_note", "") if revision else "",
+        }]
+        csv = pd.DataFrame(export_rows).to_csv(index=False).encode("utf-8")
         st.download_button(
-            "📥 Download DPAS V2 Report (CSV)",
+            "📥 Download Lesson Report (CSV)",
             data=csv,
-            file_name="DPAS_V2_Lesson_Alignment_Report.csv",
+            file_name="DPAS_V2_Lesson_Report.csv",
             mime="text/csv",
             use_container_width=True,
         )
