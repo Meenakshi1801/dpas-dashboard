@@ -41,7 +41,11 @@ LESSON_PURPOSES = [
     "Practice / application", "Inquiry / problem solving",
     "Revision / consolidation", "Assessment / diagnosis", "Other"
 ]
-ALIGNMENT_OPTIONS = ["Aligned", "Partially aligned", "Review needed"]
+ALIGNMENT_OPTIONS = [
+    "I see a clear alignment",
+    "I see partial alignment",
+    "I need to reconsider this relationship",
+]
 VERIFY_OPTIONS = ["Concur", "Partially concur", "Needs reconsideration"]
 
 photo_path = Path(__file__).parent / "profile_photo.png"
@@ -70,6 +74,15 @@ def section_header(step, title, text):
     st.markdown(f'<div class="dpas-kicker">{step}</div>', unsafe_allow_html=True)
     st.title(title)
     st.caption(text)
+
+
+def display_self_alignment(value):
+    legacy_map = {
+        "Aligned": "I see a clear alignment",
+        "Partially aligned": "I see partial alignment",
+        "Review needed": "I need to reconsider this relationship",
+    }
+    return legacy_map.get(value, value)
 
 
 def clear_lesson_state():
@@ -771,6 +784,7 @@ def render_about():
     left, right = st.columns([2.2, 1])
     with left:
         st.markdown("### About DPAS")
+        st.caption("DPAS V2 – Context-Sensitive Redesign")
         st.write(
             "DPAS V2 supports pre-service and novice teachers in planning, justifying, analysing, "
             "and revising lesson-design decisions. Its analytics are descriptive and comparative: they examine "
@@ -1280,7 +1294,11 @@ elif page.startswith("B2"):
         st.write("**Learner / Context Consideration:**", lesson.get("learner_context", "") or "—")
     st.info(
         "Interpret the alignment judgments below in relation to this lesson context. "
-        "Dself-alignment summary does not treat any cognitive level, strategy, engagement mode, inclusion choice, or assessment type as universally superior."
+        "DPAS does not treat any cognitive level, strategy, engagement mode, inclusion choice, or assessment type as universally superior."
+    )
+    st.caption(
+        "In DPAS V2, analytics means descriptive and comparative analysis of self-alignment judgments, "
+        "student–evaluator agreement, feedback, and reflective revision."
     )
 
     if lesson_id:
@@ -1298,9 +1316,9 @@ elif page.startswith("B2"):
                 k: v for k, v in student_judgments.items()
                 if v not in ("", None, "Not applicable")
             }
-            aligned_count = sum(v == "Aligned" for v in applicable_student_judgments.values())
-            partial_count = sum(v == "Partially aligned" for v in applicable_student_judgments.values())
-            review_count = sum(v == "Review needed" for v in applicable_student_judgments.values())
+            aligned_count = sum(display_self_alignment(v) == "I see a clear alignment" for v in applicable_student_judgments.values())
+            partial_count = sum(display_self_alignment(v) == "I see partial alignment" for v in applicable_student_judgments.values())
+            review_count = sum(display_self_alignment(v) == "I need to reconsider this relationship" for v in applicable_student_judgments.values())
 
             s1, s2, s3 = st.columns(3)
             s1.metric("Aligned", aligned_count)
@@ -1309,7 +1327,7 @@ elif page.startswith("B2"):
 
             st.markdown("#### Student Alignment Profile")
             student_profile = pd.DataFrame([
-                {"Dimension": dim, "Student judgment": judgment}
+                {"Dimension": dim, "Student judgment": display_self_alignment(judgment)}
                 for dim, judgment in applicable_student_judgments.items()
             ])
             st.dataframe(student_profile, use_container_width=True, hide_index=True)
@@ -1328,31 +1346,31 @@ elif page.startswith("B2"):
                 comparison_rows = [
                     {
                         "Dimension": "Objective–Cognition",
-                        "Student judgment": student_judgments.get("Objective–Cognition", ""),
+                        "Student judgment": display_self_alignment(student_judgments.get("Objective–Cognition", "")),
                         "Teacher verification": verification.get("cognition_verification", ""),
                         "Teacher comment": verification.get("cognition_comment", ""),
                     },
                     {
                         "Dimension": "Objective–Strategy",
-                        "Student judgment": student_judgments.get("Objective–Strategy", ""),
+                        "Student judgment": display_self_alignment(student_judgments.get("Objective–Strategy", "")),
                         "Teacher verification": verification.get("strategy_verification", ""),
                         "Teacher comment": verification.get("strategy_comment", ""),
                     },
                     {
                         "Dimension": "Engagement",
-                        "Student judgment": student_judgments.get("Engagement", ""),
+                        "Student judgment": display_self_alignment(student_judgments.get("Engagement", "")),
                         "Teacher verification": verification.get("engagement_verification", ""),
                         "Teacher comment": verification.get("engagement_comment", ""),
                     },
                     {
                         "Dimension": "Inclusivity",
-                        "Student judgment": student_judgments.get("Inclusivity", ""),
+                        "Student judgment": display_self_alignment(student_judgments.get("Inclusivity", "")),
                         "Teacher verification": verification.get("inclusion_verification", ""),
                         "Teacher comment": verification.get("inclusion_comment", ""),
                     },
                     {
                         "Dimension": "Assessment",
-                        "Student judgment": student_judgments.get("Assessment", ""),
+                        "Student judgment": display_self_alignment(student_judgments.get("Assessment", "")),
                         "Teacher verification": verification.get("assessment_verification", ""),
                         "Teacher comment": verification.get("assessment_comment", ""),
                     },
@@ -1525,12 +1543,30 @@ elif page.startswith("B4"):
         for dimension, judgment, rationale in self_rows:
             if judgment and judgment != "Not applicable":
                 with st.expander(dimension):
-                    st.write("**Student judgment:**", judgment)
+                    st.write("**Student judgment:**", display_self_alignment(judgment))
                     if rationale:
                         st.write("**Student rationale:**", rationale)
 
         st.markdown("### 5. Teacher-Educator Evaluation")
         if verification:
+            evaluator_profile = {}
+            reviewer_id = lesson.get("reviewer_id")
+            if reviewer_id:
+                evaluator_result = supabase.table("profiles").select("*").eq(
+                    "id", reviewer_id
+                ).limit(1).execute()
+                evaluator_profile = evaluator_result.data[0] if evaluator_result.data else {}
+
+            e1, e2 = st.columns(2)
+            with e1:
+                st.write("**Evaluator:**", evaluator_profile.get("full_name", "") or verification.get("educator_code", "") or "—")
+                st.write("**Designation:**", evaluator_profile.get("designation", "") or "—")
+            with e2:
+                st.write("**Institution:**", evaluator_profile.get("institution", "") or "—")
+                st.write("**Submission status:**", lesson.get("status", "") or "—")
+                evaluation_date = verification.get("updated_at") or verification.get("created_at")
+                st.write("**Evaluation date:**", evaluation_date or "—")
+
             verification_rows = [
                 ("Objective–Cognition", verification.get("cognition_verification"), verification.get("cognition_comment")),
                 ("Objective–Strategy", verification.get("strategy_verification"), verification.get("strategy_comment")),
@@ -1572,6 +1608,18 @@ elif page.startswith("B4"):
             "Closure": procedure.get("closure_consolidation", ""),
             "Reflection": revision.get("reflection", "") if revision else "",
             "Revision Note": revision.get("revision_note", "") if revision else "",
+            "Evaluator": (
+                evaluator_profile.get("full_name", "")
+                if verification and evaluator_profile else
+                (verification.get("educator_code", "") if verification else "")
+            ),
+            "Evaluator Designation": evaluator_profile.get("designation", "") if verification and evaluator_profile else "",
+            "Evaluator Institution": evaluator_profile.get("institution", "") if verification and evaluator_profile else "",
+            "Submission Status": lesson.get("status", ""),
+            "Evaluation Date": (
+                verification.get("updated_at") or verification.get("created_at", "")
+                if verification else ""
+            ),
         }]
         csv = pd.DataFrame(export_rows).to_csv(index=False).encode("utf-8")
         st.download_button(
