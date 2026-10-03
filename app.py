@@ -1254,21 +1254,48 @@ elif page.startswith("B2"):
 
     if lesson_id:
             st.subheader("Student Self-Alignment Analytics")
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Student PAS", f"{pas:.1f}%")
-            m2.metric("Student Alignment Category", category)
-            m3.metric("Applicable Dimensions", len(scores))
 
-            chart = pd.DataFrame({
-                "Dimension": list(scores.keys()),
-                "Student Alignment (%)": [v / 2 * 100 for v in scores.values()],
-            }).set_index("Dimension")
+            student_judgments = {}
+            if st.session_state.get("viewing_saved_lesson"):
+                student_judgments = {
+                    "Objective–Cognition": evidence.get("cognition_alignment", ""),
+                    "Objective–Strategy": evidence.get("strategy_alignment", ""),
+                    "Engagement": evidence.get("engagement_alignment", ""),
+                    "Inclusivity": evidence.get("inclusion_alignment", ""),
+                    "Assessment": evidence.get("assessment_alignment", ""),
+                }
+            else:
+                student_judgments = {
+                    "Objective–Cognition": st.session_state.get("cognition_alignment", ""),
+                    "Objective–Strategy": st.session_state.get("strategy_alignment", ""),
+                    "Engagement": st.session_state.get("engagement_alignment", ""),
+                    "Inclusivity": st.session_state.get("inclusion_alignment", ""),
+                    "Assessment": st.session_state.get("assessment_alignment", ""),
+                }
+
+            applicable_student_judgments = {
+                k: v for k, v in student_judgments.items()
+                if v not in ("", None, "Not applicable")
+            }
+            aligned_count = sum(v == "Aligned" for v in applicable_student_judgments.values())
+            partial_count = sum(v == "Partially aligned" for v in applicable_student_judgments.values())
+            review_count = sum(v == "Review needed" for v in applicable_student_judgments.values())
+
+            s1, s2, s3 = st.columns(3)
+            s1.metric("Aligned", aligned_count)
+            s2.metric("Partially Aligned", partial_count)
+            s3.metric("Review Needed", review_count)
+
             st.markdown("#### Student Alignment Profile")
-            st.bar_chart(chart)
+            student_profile = pd.DataFrame([
+                {"Dimension": dim, "Student judgment": judgment}
+                for dim, judgment in applicable_student_judgments.items()
+            ])
+            st.dataframe(student_profile, use_container_width=True, hide_index=True)
 
             st.info(
-                "The PAS above is based on the student's own alignment judgments. "
-                "Teacher-educator verification is shown separately below and is not averaged into the PAS."
+                "This is a descriptive self-alignment summary based on the student's own judgments. "
+                "It is not a percentage score or a universal lesson-quality grade."
             )
 
             verification = fetch_one("educator_verification", lesson_id)
@@ -1280,31 +1307,31 @@ elif page.startswith("B2"):
                 comparison_rows = [
                     {
                         "Dimension": "Objective–Cognition",
-                        "Student judgment": evidence.get("cognition_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("cognition_alignment", ""),
+                        "Student judgment": student_judgments.get("Objective–Cognition", ""),
                         "Teacher verification": verification.get("cognition_verification", ""),
                         "Teacher comment": verification.get("cognition_comment", ""),
                     },
                     {
                         "Dimension": "Objective–Strategy",
-                        "Student judgment": evidence.get("strategy_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("strategy_alignment", ""),
+                        "Student judgment": student_judgments.get("Objective–Strategy", ""),
                         "Teacher verification": verification.get("strategy_verification", ""),
                         "Teacher comment": verification.get("strategy_comment", ""),
                     },
                     {
                         "Dimension": "Engagement",
-                        "Student judgment": evidence.get("engagement_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("engagement_alignment", ""),
+                        "Student judgment": student_judgments.get("Engagement", ""),
                         "Teacher verification": verification.get("engagement_verification", ""),
                         "Teacher comment": verification.get("engagement_comment", ""),
                     },
                     {
                         "Dimension": "Inclusivity",
-                        "Student judgment": evidence.get("inclusion_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("inclusion_alignment", ""),
+                        "Student judgment": student_judgments.get("Inclusivity", ""),
                         "Teacher verification": verification.get("inclusion_verification", ""),
                         "Teacher comment": verification.get("inclusion_comment", ""),
                     },
                     {
                         "Dimension": "Assessment",
-                        "Student judgment": evidence.get("assessment_alignment", "") if st.session_state.get("viewing_saved_lesson") else st.session_state.get("assessment_alignment", ""),
+                        "Student judgment": student_judgments.get("Assessment", ""),
                         "Teacher verification": verification.get("assessment_verification", ""),
                         "Teacher comment": verification.get("assessment_comment", ""),
                     },
@@ -1380,8 +1407,7 @@ elif page.startswith("B4"):
                 "Learning Activity / Practice": procedure.get("learning_activity", ""),
                 "Assessment During Lesson": procedure.get("assessment_during_lesson", ""),
                 "Closure / Consolidation": procedure.get("closure_consolidation", ""),
-                "PAS Score (V2)": round(pas, 2),
-                "Alignment Category": category,
+                "Student Aligned Dimensions": sum(v == "Aligned" for v in evidence.values() if isinstance(v, str)),
                 "Reflection": revision.get("reflection", ""),
                 "Revision Note": revision.get("revision_note", ""),
             }
@@ -1402,8 +1428,7 @@ elif page.startswith("B4"):
             "Learning Activity / Practice": st.session_state.get("procedure_activity", ""),
             "Assessment During Lesson": st.session_state.get("procedure_assessment", ""),
             "Closure / Consolidation": st.session_state.get("procedure_closure", ""),
-            "PAS Score (V2)": round(pas, 2),
-            "Alignment Category": category,
+            "Student Alignment Summary": "Descriptive categorical profile; no percentage score",
             "Reflection": st.session_state.get("reflection", ""),
             "Revision Note": st.session_state.get("revision_note", ""),
         }
