@@ -708,7 +708,7 @@ def submit_educator_verification(lesson_id):
 
     payload = {
         "lesson_id": lesson_id,
-        "educator_code": profile.get("email", profile.get("full_name", "")),
+        "educator_code": profile.get("full_name") or profile.get("email", ""),
         "cognition_verification": st.session_state.get("verify_cognition", ""),
         "cognition_comment": st.session_state.get("verify_cognition_comment", ""),
         "strategy_verification": st.session_state.get("verify_strategy", ""),
@@ -737,6 +737,47 @@ def submit_educator_verification(lesson_id):
     except Exception as e:
         st.error(f"Could not save verification: {e}")
         return False
+
+
+def resolve_evaluator_profile(lesson, verification):
+    """Resolve evaluator identity for both new and legacy verification records."""
+    if not supabase:
+        return {}
+
+    reviewer_id = lesson.get("reviewer_id")
+    if reviewer_id:
+        try:
+            result = supabase.table("profiles").select("*").eq(
+                "id", reviewer_id
+            ).limit(1).execute()
+            if result.data:
+                return result.data[0]
+        except Exception:
+            pass
+
+    legacy_identifier = (verification or {}).get("educator_code", "")
+    if legacy_identifier:
+        # Older records stored the educator email in educator_code.
+        try:
+            result = supabase.table("profiles").select("*").eq(
+                "email", legacy_identifier
+            ).limit(1).execute()
+            if result.data:
+                return result.data[0]
+        except Exception:
+            pass
+
+        # Newer records store the educator's full name.
+        try:
+            result = supabase.table("profiles").select("*").eq(
+                "full_name", legacy_identifier
+            ).limit(1).execute()
+            if result.data:
+                return result.data[0]
+        except Exception:
+            pass
+
+    return {}
 
 
 def save_revision():
@@ -1549,17 +1590,16 @@ elif page.startswith("B4"):
 
         st.markdown("### 5. Teacher-Educator Evaluation")
         if verification:
-            evaluator_profile = {}
-            reviewer_id = lesson.get("reviewer_id")
-            if reviewer_id:
-                evaluator_result = supabase.table("profiles").select("*").eq(
-                    "id", reviewer_id
-                ).limit(1).execute()
-                evaluator_profile = evaluator_result.data[0] if evaluator_result.data else {}
+            evaluator_profile = resolve_evaluator_profile(lesson, verification)
 
             e1, e2 = st.columns(2)
             with e1:
-                st.write("**Evaluator:**", evaluator_profile.get("full_name", "") or verification.get("educator_code", "") or "—")
+                st.write(
+                    "**Evaluator:**",
+                    evaluator_profile.get("full_name", "")
+                    or verification.get("educator_code", "")
+                    or "—",
+                )
                 st.write("**Designation:**", evaluator_profile.get("designation", "") or "—")
             with e2:
                 st.write("**Institution:**", evaluator_profile.get("institution", "") or "—")
