@@ -72,58 +72,6 @@ def section_header(step, title, text):
     st.caption(text)
 
 
-def alignment_points(value):
-    return {"Aligned": 2, "Partially aligned": 1, "Review needed": 0}.get(value)
-
-
-def compute_pas():
-    judgments = {
-        "Objective–Cognition": st.session_state.get("cognition_alignment"),
-        "Objective–Strategy": st.session_state.get("strategy_alignment"),
-        "Engagement": st.session_state.get("engagement_alignment"),
-        "Inclusivity": st.session_state.get("inclusion_alignment"),
-        "Assessment": st.session_state.get("assessment_alignment"),
-    }
-    scores = {}
-    for dimension, value in judgments.items():
-        pts = alignment_points(value)
-        if pts is not None:
-            scores[dimension] = pts
-    maximum = 2 * len(scores)
-    pas = (sum(scores.values()) / maximum * 100) if maximum else 0
-    if pas >= 75:
-        category = "Strong Alignment"
-    elif pas >= 50:
-        category = "Developing Alignment"
-    else:
-        category = "Alignment Needs Review"
-    return pas, category, scores
-
-
-def compute_pas_from_evidence(evidence):
-    judgments = {
-        "Objective–Cognition": evidence.get("cognition_alignment"),
-        "Objective–Strategy": evidence.get("strategy_alignment"),
-        "Engagement": evidence.get("engagement_alignment"),
-        "Inclusivity": evidence.get("inclusion_alignment"),
-        "Assessment": evidence.get("assessment_alignment"),
-    }
-    scores = {}
-    for dimension, value in judgments.items():
-        pts = alignment_points(value)
-        if pts is not None:
-            scores[dimension] = pts
-    maximum = 2 * len(scores)
-    pas = (sum(scores.values()) / maximum * 100) if maximum else 0
-    if pas >= 75:
-        category = "Strong Alignment"
-    elif pas >= 50:
-        category = "Developing Alignment"
-    else:
-        category = "Alignment Needs Review"
-    return pas, category, scores
-
-
 def clear_lesson_state():
     keys = [
         "lesson_id", "subject_topic", "class_level", "learning_outcome",
@@ -559,18 +507,6 @@ def save_alignment_draft():
         "assessment_alignment": st.session_state.get("assessment_alignment", ""),
     }
 
-    # Save PAS only when enough alignment judgments exist to calculate it meaningfully.
-    core_keys = [
-        "cognition_alignment",
-        "strategy_alignment",
-        "engagement_alignment",
-        "assessment_alignment",
-    ]
-    if all(st.session_state.get(k) for k in core_keys):
-        pas, category, _ = compute_pas()
-        payload["pas_score"] = round(pas, 2)
-        payload["alignment_category"] = category
-
     try:
         # Synchronize the exact design choices visible at the moment of submission.
         design_payload = {
@@ -663,7 +599,6 @@ def submit_self_analysis(teacher_id):
     else:
         st.session_state["inclusion_alignment"] = "Not applicable"
 
-    pas, category, _ = compute_pas()
     payload = {
         "lesson_id": st.session_state["lesson_id"],
         "cognitive_rationale": st.session_state.get("cognitive_rationale", ""),
@@ -675,8 +610,6 @@ def submit_self_analysis(teacher_id):
         "inclusion_alignment": st.session_state.get("inclusion_alignment", "Not applicable"),
         "assessment_rationale": st.session_state.get("assessment_rationale", ""),
         "assessment_alignment": st.session_state.get("assessment_alignment", ""),
-        "pas_score": round(pas, 2),
-        "alignment_category": category,
     }
     try:
         existing = supabase.table("alignment_evidence").select("id").eq(
@@ -738,6 +671,28 @@ def fetch_one(table, lesson_id):
 
 def submit_educator_verification(lesson_id):
     profile = st.session_state.get("profile", {})
+
+    verification_fields = [
+        ("Objective–Cognition", "verify_cognition", "verify_cognition_comment"),
+        ("Objective–Strategy", "verify_strategy", "verify_strategy_comment"),
+        ("Engagement", "verify_engagement", "verify_engagement_comment"),
+        ("Inclusivity", "verify_inclusion", "verify_inclusion_comment"),
+        ("Assessment", "verify_assessment", "verify_assessment_comment"),
+    ]
+    missing_explanations = [
+        label
+        for label, judgment_key, comment_key in verification_fields
+        if st.session_state.get(judgment_key) in ("Partially concur", "Needs reconsideration")
+        and not st.session_state.get(comment_key, "").strip()
+    ]
+    if missing_explanations:
+        st.error(
+            "Please explain your verification for: "
+            + ", ".join(missing_explanations)
+            + ". A comment is required when you select Partially concur or Needs reconsideration."
+        )
+        return False
+
     payload = {
         "lesson_id": lesson_id,
         "educator_code": profile.get("email", profile.get("full_name", "")),
@@ -818,9 +773,10 @@ def render_about():
         st.markdown("### About DPAS")
         st.write(
             "DPAS V2 supports pre-service and novice teachers in planning, justifying, analysing, "
-            "and revising lesson-design decisions. The system focuses on alignment among intended "
-            "learning outcomes, cognitive demand, pedagogical strategy, learner engagement, inclusivity, "
-            "and assessment rather than treating any single method as inherently superior."
+            "and revising lesson-design decisions. Its analytics are descriptive and comparative: they examine "
+            "alignment patterns, student–evaluator agreement, feedback, and revision in relation to lesson context. "
+            "The system does not treat any single cognitive level, strategy, engagement mode, inclusion choice, "
+            "or assessment type as inherently superior."
         )
         st.write(
             "Students can submit their lesson analysis directly to a registered teacher educator or "
@@ -1053,8 +1009,24 @@ if active_role == "teacher_educator":
                     elif title == "Inclusivity":
                         st.write("**Identified need:**", design.get("inclusion_need", ""))
                         st.write("**Planned support:**", design.get("inclusion_support", ""))
-                    st.radio("Educator verification", VERIFY_OPTIONS, key=verify_key, horizontal=True)
-                    st.text_area("Educator comment", key=f"{verify_key}_comment")
+                    educator_judgment = st.radio(
+                        "Educator verification",
+                        VERIFY_OPTIONS,
+                        key=verify_key,
+                        horizontal=True,
+                    )
+                    comment_required = educator_judgment in ("Partially concur", "Needs reconsideration")
+                    st.text_area(
+                        "Educator comment" + (" *" if comment_required else ""),
+                        key=f"{verify_key}_comment",
+                        help=(
+                            "Required when verification is Partially concur or Needs reconsideration."
+                            if comment_required
+                            else "Optional for Concur; add a comment when it would help the student."
+                        ),
+                    )
+                    if comment_required:
+                        st.caption("A written explanation is required for this verification.")
 
             if st.button("Submit Teacher-Educator Verification", type="primary", use_container_width=True):
                 if submit_educator_verification(lesson_id):
@@ -1275,52 +1247,52 @@ elif page.startswith("B2"):
     section_header(
         "B2",
         "Pedagogical Analytics & Teacher's Evaluation",
-        "Review the student's alignment analytics alongside the teacher educator's independent evaluation.",
+        "Review the student's context-sensitive self-alignment analysis alongside the teacher educator's independent evaluation.",
     )
     lesson_id = st.session_state.get("lesson_id")
     if not lesson_id:
-        st.info("No lesson is currently open. Go to **My Lessons**, open a saved lesson, and then return to Analytics.")
-    elif st.session_state.get("viewing_saved_lesson"):
-        evidence = fetch_one("alignment_evidence", lesson_id)
-        required_values = [
-            evidence.get("cognition_alignment"),
-            evidence.get("strategy_alignment"),
-            evidence.get("engagement_alignment"),
-            evidence.get("assessment_alignment"),
-        ]
-        if not all(required_values):
-            st.warning("The selected lesson does not yet contain complete Alignment Evidence.")
-            st.stop()
-        pas, category, scores = compute_pas_from_evidence(evidence)
-    else:
-        hydrate_saved_lesson()
-        load_alignment_draft()
-        required = ["cognition_alignment", "strategy_alignment", "engagement_alignment", "assessment_alignment"]
-        if not all(st.session_state.get(k) for k in required):
-            st.warning("Complete Alignment Evidence first.")
-            st.stop()
-        pas, category, scores = compute_pas()
+        st.info("No lesson is currently open. Go to **B1 · My Submitted Lessons**, open a saved lesson, and then return here.")
+        st.stop()
+
+    lesson_result = supabase.table("lesson_submissions").select("*").eq(
+        "id", lesson_id
+    ).limit(1).execute()
+    lesson = lesson_result.data[0] if lesson_result.data else {}
+    evidence = fetch_one("alignment_evidence", lesson_id)
+
+    required_values = [
+        evidence.get("cognition_alignment"),
+        evidence.get("strategy_alignment"),
+        evidence.get("engagement_alignment"),
+        evidence.get("assessment_alignment"),
+    ]
+    if not all(required_values):
+        st.warning("The selected lesson does not yet contain complete Alignment Evidence.")
+        st.stop()
+
+    st.markdown("### Lesson Context for Interpretation")
+    context_left, context_right = st.columns(2)
+    with context_left:
+        st.write("**Class / Grade:**", lesson.get("class_level", "") or "—")
+        st.write("**Lesson Purpose:**", lesson.get("lesson_purpose", "") or "—")
+    with context_right:
+        st.write("**Intended Learning Outcome:**", lesson.get("learning_outcome", "") or "—")
+        st.write("**Learner / Context Consideration:**", lesson.get("learner_context", "") or "—")
+    st.info(
+        "Interpret the alignment judgments below in relation to this lesson context. "
+        "Dself-alignment summary does not treat any cognitive level, strategy, engagement mode, inclusion choice, or assessment type as universally superior."
+    )
 
     if lesson_id:
             st.subheader("Student Self-Alignment Analytics")
 
-            student_judgments = {}
-            if st.session_state.get("viewing_saved_lesson"):
-                student_judgments = {
-                    "Objective–Cognition": evidence.get("cognition_alignment", ""),
-                    "Objective–Strategy": evidence.get("strategy_alignment", ""),
-                    "Engagement": evidence.get("engagement_alignment", ""),
-                    "Inclusivity": evidence.get("inclusion_alignment", ""),
-                    "Assessment": evidence.get("assessment_alignment", ""),
-                }
-            else:
-                student_judgments = {
-                    "Objective–Cognition": st.session_state.get("cognition_alignment", ""),
-                    "Objective–Strategy": st.session_state.get("strategy_alignment", ""),
-                    "Engagement": st.session_state.get("engagement_alignment", ""),
-                    "Inclusivity": st.session_state.get("inclusion_alignment", ""),
-                    "Assessment": st.session_state.get("assessment_alignment", ""),
-                }
+            student_judgments = {
+                "Objective–Cognition": evidence.get("cognition_alignment", ""),
+                "Objective–Strategy": evidence.get("strategy_alignment", ""),
+                "Engagement": evidence.get("engagement_alignment", ""),
+                "Inclusivity": evidence.get("inclusion_alignment", ""),
+                "Assessment": evidence.get("assessment_alignment", ""),
+            }
 
             applicable_student_judgments = {
                 k: v for k, v in student_judgments.items()
@@ -1419,7 +1391,7 @@ elif page.startswith("B2"):
 
                 st.info(
                     "Teacher-educator verification is intentionally kept as an independent external judgment. "
-                    "It is not converted into the student's PAS or combined into a single quality score."
+                    "It is not converted into the student's self-alignment summary or combined into a single quality score."
                 )
 
 elif page.startswith("B3"):
