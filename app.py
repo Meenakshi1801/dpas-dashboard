@@ -217,11 +217,17 @@ if st.button("Analyze Lesson Alignment", type="primary", use_container_width=Tru
 
     st.subheader("Dashboard Results")
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1, 1.35])
     with col1:
         st.metric("Self-Reported Alignment Profile", f"{profile_score:.1f}%")
     with col2:
-        st.metric("Profile Interpretation", profile_label)
+        st.markdown("**Profile Interpretation**")
+        if profile_score >= 75:
+            st.success(profile_label)
+        elif profile_score >= 50:
+            st.warning(profile_label)
+        else:
+            st.error(profile_label)
 
     # Attractive gauge retained from the original dashboard
     fig_gauge = go.Figure(
