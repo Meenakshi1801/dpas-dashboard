@@ -827,11 +827,11 @@ def render_about():
         st.markdown("### About DECIDE-Teach")
         st.caption("A reflective decision-support system for pedagogical decision making")
         st.write(
-            "DPAS V2 supports pre-service and novice teachers in planning, justifying, analysing, "
-            "and revising lesson-design decisions. Its analytics are descriptive and comparative: they examine "
-            "alignment patterns, student–evaluator agreement, feedback, and revision in relation to lesson context. "
-            "The system does not treat any single cognitive level, strategy, engagement mode, inclusion choice, "
-            "or assessment type as inherently superior."
+            "DECIDE-Teach supports pre-service and novice teachers in making, justifying, examining, and refining "
+            "pedagogical decisions in relation to intended learning outcomes, lesson purpose, learner needs, and context. "
+            "Its analytics are descriptive and reflective, helping users inspect patterns in their own decisions, "
+            "consider feedback, and revise lesson design without treating any cognitive level, strategy, engagement mode, "
+            "inclusion choice, or assessment type as inherently superior."
         )
         st.write(
             "Students can submit their lesson analysis to a registered teacher educator or supervisor for feedback. "
