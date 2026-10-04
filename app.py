@@ -163,6 +163,7 @@ def alignment_item(label, key):
         label,
         list(alignment_options.keys()),
         horizontal=True,
+        index=None,
         key=key
     )
     note = ""
@@ -172,7 +173,7 @@ def alignment_item(label, key):
             key=f"{key}_note",
             placeholder="Briefly explain what you may revise or reconsider."
         )
-    return choice, alignment_options[choice], note
+    return choice, (alignment_options[choice] if choice else None), note
 
 
 cog_choice, cog_score, cog_note = alignment_item(
@@ -203,6 +204,11 @@ st.markdown("---")
 if st.button("Analyze Lesson Alignment", type="primary", use_container_width=True):
     if not intended_outcome.strip():
         st.error("Please enter the Intended Learning Outcome before analyzing the lesson.")
+        st.stop()
+
+    choices = [cog_choice, str_choice, eng_choice, inc_choice, ass_choice]
+    if any(choice is None for choice in choices):
+        st.error("Please complete all five alignment checks before analyzing the lesson.")
         st.stop()
 
     scores = [cog_score, str_score, eng_score, inc_score, ass_score]
