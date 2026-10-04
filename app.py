@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import streamlit as st
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -16,20 +15,16 @@ st.set_page_config(
 
 # -------- HEADER --------
 st.title("DILP-LA Pedagogical Analytics System (DPAS)")
-st.write("Data-Informed Lesson Planning Dashboard")
+st.caption("A compact pedagogical decision-support dashboard for lesson planning")
 
-st.markdown("### About This Application")
-
-# Photograph location
 photo_path = Path(__file__).parent / "profile_photo.png"
 
-# About and developer section
 information_column, photo_column = st.columns([3, 1])
 
 with information_column:
     st.markdown("""
-    **DILP-LA Pedagogical Analytics System (DPAS)** is developed to support
-    data-informed lesson planning and pedagogical alignment analysis.
+    **DPAS** supports pre-service teachers in examining the coherence of lesson-design
+    decisions in relation to the intended learning outcome, lesson purpose, and learner context.
 
     **Developer:** Dr. Meenakshi Dwivedi  
     Assistant Professor, School of Education  
@@ -39,130 +34,202 @@ with information_column:
 
 with photo_column:
     if photo_path.exists():
-        st.image(
-            str(photo_path),
-            width=165,
-            caption="Dr. Meenakshi Dwivedi"
-        )
+        st.image(str(photo_path), width=165, caption="Dr. Meenakshi Dwivedi")
     else:
         st.warning("Profile photograph not found.")
+
+st.info(
+    "DPAS does not assume that a higher Bloom level, a greater number of strategies, "
+    "collaborative participation, or a particular assessment type is automatically superior. "
+    "The focus is on contextual fit and coherence."
+)
 
 st.markdown("---")
 
 
-# -------- INPUT SECTION --------
-cognitive = st.selectbox(
-    "Cognitive Level",
+# -------- SECTION 1: LESSON CONTEXT --------
+st.subheader("1. Lesson Context")
+
+intended_outcome = st.text_area(
+    "Intended Learning Outcome",
+    placeholder="What should learners know, understand, or be able to do by the end of the lesson?",
+    height=90
+)
+
+lesson_purpose = st.selectbox(
+    "Lesson Purpose",
     [
-        ("C1 - Remember", 1),
-        ("C2 - Understand", 2),
-        ("C3 - Apply", 3),
-        ("C4 - Analyze", 4),
-        ("C5 - Evaluate", 5),
-        ("C6 - Create", 6)
-    ],
-    format_func=lambda option: option[0]
+        "Introduce a new concept",
+        "Develop understanding",
+        "Practice or apply learning",
+        "Analyze or investigate",
+        "Consolidate or revise",
+        "Assess learning",
+        "Other"
+    ]
+)
+
+learner_context = st.text_area(
+    "Learner / Context Consideration",
+    placeholder="Mention any relevant learner need, prior knowledge, classroom condition, or contextual factor.",
+    height=85
+)
+
+st.markdown("---")
+
+
+# -------- SECTION 2: DESIGN DECISIONS --------
+st.subheader("2. Lesson Design Decisions")
+
+cognitive = st.selectbox(
+    "Planned Cognitive Demand",
+    [
+        "C1 - Remember",
+        "C2 - Understand",
+        "C3 - Apply",
+        "C4 - Analyze",
+        "C5 - Evaluate",
+        "C6 - Create"
+    ]
 )
 
 strategy = st.selectbox(
     "Pedagogical Strategy",
     [
-        ("PS1 - Lecture", 1),
-        ("PS2 - Discussion", 2),
-        ("PS3 - Activity-Based", 3),
-        ("PS4 - Inquiry-Based", 4),
-        ("PS5 - Experiential/Problem-Based", 5)
-    ],
-    format_func=lambda option: option[0]
+        "Lecture / Explanation",
+        "Discussion",
+        "Activity-Based",
+        "Inquiry-Based",
+        "Experiential / Problem-Based",
+        "Demonstration",
+        "Collaborative Learning",
+        "Other"
+    ]
 )
 
 engagement = st.selectbox(
     "Learner Engagement Mode",
     [
-        ("L1 - Individual", 1),
-        ("L2 - Pair", 2),
-        ("L3 - Group", 3),
-        ("L4 - Whole Class", 4)
-    ],
-    format_func=lambda option: option[0]
+        "Individual",
+        "Pair",
+        "Small Group",
+        "Whole Class",
+        "Mixed / Flexible"
+    ]
 )
 
 inclusivity = st.selectbox(
-    "Inclusivity Marker",
+    "Learner Support / Inclusivity",
     [
-        ("I1 - No Inclusion", 1),
-        ("I2 - Minimal Inclusion", 2),
-        ("I3 - Moderate Inclusion", 3),
-        ("I4 - High Inclusion", 4)
-    ],
-    format_func=lambda option: option[0]
+        "No specific support required for this lesson",
+        "Specific learner/context need identified and supported",
+        "Differentiated support planned",
+        "Flexible support depending on learner response"
+    ]
 )
 
 assessment = st.selectbox(
-    "Assessment Type",
+    "Assessment Approach",
     [
-        ("A1 - Formative", 1),
-        ("A2 - Summative", 2),
-        ("A3 - Peer Assessment", 3),
-        ("A4 - Self-Assessment", 4)
-    ],
-    format_func=lambda option: option[0]
+        "Formative Assessment",
+        "Summative Assessment",
+        "Peer Assessment",
+        "Self-Assessment",
+        "Teacher Observation / Questioning",
+        "Performance / Product Assessment",
+        "Combination of approaches"
+    ]
 )
 
 st.markdown("---")
 
 
-# -------- CALCULATION AND VISUALIZATION --------
-if st.button(
-    "Calculate Pedagogical Alignment Score (PAS)",
-    type="primary",
-    use_container_width=True
-):
+# -------- SECTION 3: ALIGNMENT CHECK --------
+st.subheader("3. Alignment Check")
+st.write(
+    "For each relationship, judge how well the selected lesson-design decision fits the "
+    "intended outcome, lesson purpose, and learner context."
+)
 
-    # Calculate normalized dimension scores
-    norm_scores = [
-        cognitive[1] / 6,
-        strategy[1] / 5,
-        engagement[1] / 4,
-        inclusivity[1] / 4,
-        assessment[1] / 4
-    ]
+alignment_options = {
+    "Strong fit": 4,
+    "Appropriate fit": 3,
+    "Partial fit": 2,
+    "Needs reconsideration": 1
+}
 
-    percentages = [score * 100 for score in norm_scores]
-    pas = np.mean(percentages)
+def alignment_item(label, key):
+    choice = st.radio(
+        label,
+        list(alignment_options.keys()),
+        horizontal=True,
+        key=key
+    )
+    note = ""
+    if choice in ["Partial fit", "Needs reconsideration"]:
+        note = st.text_area(
+            "What may need reconsideration?",
+            key=f"{key}_note",
+            placeholder="Briefly explain what you may revise or reconsider."
+        )
+    return choice, alignment_options[choice], note
 
-    # Determine alignment category
-    if pas >= 75:
-        category = "High Alignment"
-    elif pas >= 50:
-        category = "Moderate Alignment"
+
+cog_choice, cog_score, cog_note = alignment_item(
+    "Outcome–Cognitive Demand Alignment",
+    "cog_align"
+)
+str_choice, str_score, str_note = alignment_item(
+    "Outcome–Strategy Alignment",
+    "str_align"
+)
+eng_choice, eng_score, eng_note = alignment_item(
+    "Engagement Appropriateness",
+    "eng_align"
+)
+inc_choice, inc_score, inc_note = alignment_item(
+    "Context / Inclusivity Appropriateness",
+    "inc_align"
+)
+ass_choice, ass_score, ass_note = alignment_item(
+    "Outcome–Assessment Alignment",
+    "ass_align"
+)
+
+st.markdown("---")
+
+
+# -------- SECTION 4: ANALYSIS --------
+if st.button("Analyze Lesson Alignment", type="primary", use_container_width=True):
+    if not intended_outcome.strip():
+        st.error("Please enter the Intended Learning Outcome before analyzing the lesson.")
+        st.stop()
+
+    scores = [cog_score, str_score, eng_score, inc_score, ass_score]
+    profile_score = ((sum(scores) / len(scores)) - 1) / 3 * 100
+
+    if profile_score >= 75:
+        profile_label = "Strong self-reported coherence"
+    elif profile_score >= 50:
+        profile_label = "Generally appropriate with some review"
     else:
-        category = "Low Alignment"
+        profile_label = "Substantial reconsideration indicated"
 
-    # Display results
-    st.subheader("Results")
+    st.subheader("Dashboard Results")
 
-    result_column1, result_column2 = st.columns(2)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Self-Reported Alignment Profile", f"{profile_score:.1f}%")
+    with col2:
+        st.metric("Profile Interpretation", profile_label)
 
-    with result_column1:
-        st.metric(
-            label="Pedagogical Alignment Score",
-            value=f"{pas:.2f}%"
-        )
-
-    with result_column2:
-        st.metric(
-            label="Alignment Category",
-            value=category
-        )
-
-    # Gauge chart
+    # Attractive gauge retained from the original dashboard
     fig_gauge = go.Figure(
         go.Indicator(
             mode="gauge+number",
-            value=pas,
+            value=profile_score,
             number={"suffix": "%"},
-            title={"text": "Pedagogical Alignment Score (PAS)"},
+            title={"text": "Self-Reported Lesson Alignment Profile"},
             gauge={
                 "axis": {"range": [0, 100]},
                 "bar": {"color": "#1F77B4"},
@@ -174,75 +241,106 @@ if st.button(
                 "threshold": {
                     "line": {"color": "black", "width": 4},
                     "thickness": 0.75,
-                    "value": pas
+                    "value": profile_score
                 }
             }
         )
     )
-
     fig_gauge.update_layout(
-        height=350,
+        height=340,
         margin={"l": 30, "r": 30, "t": 70, "b": 20}
     )
+    st.plotly_chart(fig_gauge, use_container_width=True)
 
-    st.plotly_chart(
-        fig_gauge,
-        use_container_width=True
-    )
+    st.subheader("Dimension-wise Alignment Profile")
 
-    # Feedback message
-    if pas < 50:
-        st.error(
-            "Low Alignment: Lesson components require stronger "
-            "pedagogical alignment."
-        )
-    elif pas < 75:
-        st.warning(
-            "Moderate Alignment: Some instructional elements can be improved."
-        )
-    else:
-        st.success(
-            "High Alignment: Lesson design demonstrates strong "
-            "pedagogical alignment."
-        )
-
-    # Dimension-wise chart
-    st.subheader("Dimension-wise Alignment")
-
-    df_chart = pd.DataFrame({
+    chart_df = pd.DataFrame({
         "Dimension": [
             "Cognitive",
             "Strategy",
             "Engagement",
-            "Inclusivity",
+            "Inclusivity / Context",
             "Assessment"
         ],
-        "Alignment (%)": percentages
+        "Alignment (%)": [
+            ((cog_score - 1) / 3) * 100,
+            ((str_score - 1) / 3) * 100,
+            ((eng_score - 1) / 3) * 100,
+            ((inc_score - 1) / 3) * 100,
+            ((ass_score - 1) / 3) * 100
+        ]
     }).set_index("Dimension")
 
-    st.bar_chart(df_chart)
+    st.bar_chart(chart_df)
 
-    # Export results
+    st.subheader("Design Snapshot")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f"**Cognitive demand:** {cognitive}")
+        st.markdown(f"**Strategy:** {strategy}")
+        st.markdown(f"**Engagement:** {engagement}")
+    with c2:
+        st.markdown(f"**Learner support:** {inclusivity}")
+        st.markdown(f"**Assessment:** {assessment}")
+        st.markdown(f"**Lesson purpose:** {lesson_purpose}")
+
+    reconsider = []
+    for dimension, choice in [
+        ("Cognitive demand", cog_choice),
+        ("Strategy", str_choice),
+        ("Engagement", eng_choice),
+        ("Inclusivity / context", inc_choice),
+        ("Assessment", ass_choice),
+    ]:
+        if choice in ["Partial fit", "Needs reconsideration"]:
+            reconsider.append(dimension)
+
+    if reconsider:
+        st.warning(
+            "Areas identified for review: " + ", ".join(reconsider) + "."
+        )
+    else:
+        st.success(
+            "No dimension was marked for immediate reconsideration. Review the lesson as a whole "
+            "before finalizing it."
+        )
+
+    st.caption(
+        "This profile represents the student's structured self-appraisal of alignment. "
+        "It is a formative decision-support output and is not an independent measure of lesson quality."
+    )
+
     st.markdown("---")
     st.subheader("Export Results")
 
-    report_data = {
-        "Cognitive Level": [cognitive[0]],
-        "Pedagogical Strategy": [strategy[0]],
-        "Learner Engagement": [engagement[0]],
-        "Inclusivity": [inclusivity[0]],
-        "Assessment Type": [assessment[0]],
-        "PAS Score": [round(pas, 2)],
-        "Alignment Category": [category]
-    }
+    report_df = pd.DataFrame({
+        "Intended Learning Outcome": [intended_outcome],
+        "Lesson Purpose": [lesson_purpose],
+        "Learner / Context Consideration": [learner_context],
+        "Cognitive Demand": [cognitive],
+        "Pedagogical Strategy": [strategy],
+        "Learner Engagement": [engagement],
+        "Learner Support / Inclusivity": [inclusivity],
+        "Assessment Approach": [assessment],
+        "Cognitive Alignment": [cog_choice],
+        "Strategy Alignment": [str_choice],
+        "Engagement Appropriateness": [eng_choice],
+        "Context / Inclusivity Appropriateness": [inc_choice],
+        "Assessment Alignment": [ass_choice],
+        "Self-Reported Alignment Profile": [round(profile_score, 2)],
+        "Cognitive Reflection": [cog_note],
+        "Strategy Reflection": [str_note],
+        "Engagement Reflection": [eng_note],
+        "Inclusivity Reflection": [inc_note],
+        "Assessment Reflection": [ass_note]
+    })
 
-    report_df = pd.DataFrame(report_data)
     csv = report_df.to_csv(index=False).encode("utf-8")
 
     st.download_button(
-        label="📥 Download PAS Report (CSV)",
+        label="📥 Download Lesson Alignment Report (CSV)",
         data=csv,
-        file_name="PAS_Lesson_Plan_Report.csv",
+        file_name="DPAS_Lesson_Alignment_Report.csv",
         mime="text/csv",
         use_container_width=True
     )
