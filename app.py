@@ -4,7 +4,7 @@ import streamlit as st
 from supabase import create_client
 
 st.set_page_config(
-    page_title="DPAS V2",
+    page_title="DECIDE-Teach",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -818,14 +818,14 @@ def save_revision():
 
 def render_about():
     section_header(
-        "ABOUT DPAS",
-        "DILP-LA Pedagogical Analytics System (DPAS)",
-        "A context-sensitive pedagogical alignment and reflection system for pre-service and novice teachers.",
+        "ABOUT DECIDE-TEACH",
+        "DECIDE-Teach",
+        "Decision Enhancement through Contextual Instructional Design and Evaluation",
     )
     left, right = st.columns([2.2, 1])
     with left:
-        st.markdown("### About DPAS")
-        st.caption("DPAS V2 – Context-Sensitive Redesign")
+        st.markdown("### About DECIDE-Teach")
+        st.caption("A reflective decision-support system for pedagogical decision making")
         st.write(
             "DPAS V2 supports pre-service and novice teachers in planning, justifying, analysing, "
             "and revising lesson-design decisions. Its analytics are descriptive and comparative: they examine "
@@ -834,11 +834,11 @@ def render_about():
             "or assessment type as inherently superior."
         )
         st.write(
-            "Students can submit their lesson analysis directly to a registered teacher educator or "
-            "supervisor of their choice. The selected educator receives that submission in their own DPAS inbox."
+            "Students can submit their lesson analysis to a registered teacher educator or supervisor for feedback. "
+            "This external review is a supporting layer; the central focus remains the student’s own pedagogical decisions, reflection, and revision."
         )
         st.info(
-            "DPAS is a formative decision-support and reflection system. Its alignment indicators "
+            "DECIDE-Teach is a formative decision-support and reflection system. Its alignment indicators "
             "support pedagogical reasoning; they are not a universal quality grade."
         )
         st.markdown("### Conceptualized and Developed by")
@@ -853,8 +853,8 @@ Bareilly, Uttar Pradesh, India
         if photo_path.exists():
             st.image(str(photo_path), width=250, caption="Dr. Meenakshi Dwivedi")
         st.markdown(
-            '<div class="dpas-card"><div class="dpas-kicker">DPAS V2</div>'
-            '<div class="dpas-title">Plan → Justify → Analyse → Submit → Verify → Reflect → Revise</div>'
+            '<div class="dpas-card"><div class="dpas-kicker">DECIDE-Teach</div>'
+            '<div class="dpas-title">Context → Decide → Justify → Analyse → Reflect → Refine</div>'
             '<div class="small-note">A structured workflow for pedagogical reasoning and supervised lesson planning.</div></div>',
             unsafe_allow_html=True,
         )
@@ -865,12 +865,12 @@ profile = st.session_state.get("profile")
 user = current_user()
 
 with st.sidebar:
-    st.markdown("## 📊 DPAS V2")
-    st.caption("Context-Sensitive Pedagogical Alignment & Reflection System")
+    st.markdown("## 🧭 DECIDE-Teach")
+    st.caption("Decision Enhancement through Contextual Instructional Design and Evaluation")
     st.markdown("---")
 
     if not user:
-        page = st.radio("Navigation", ["About DPAS", "Sign in / Register"], label_visibility="collapsed")
+        page = st.radio("Navigation", ["About DECIDE-Teach", "Sign in / Register"], label_visibility="collapsed")
     else:
         if not profile:
             profile = load_profile(user["id"])
@@ -885,7 +885,7 @@ with st.sidebar:
         if role == "teacher_educator":
             page = st.radio(
                 "Navigation",
-                ["About DPAS", "Submissions Sent to Me"],
+                ["About DECIDE-Teach", "Submissions Sent to Me"],
                 label_visibility="collapsed",
             )
         else:
@@ -893,12 +893,12 @@ with st.sidebar:
 
             main_area = st.radio(
                 "Choose workspace",
-                ["About DPAS", "A · Submit New Lesson", "B · Look Submitted Lesson"],
+                ["About DECIDE-Teach", "A · Submit New Lesson", "B · Look Submitted Lesson"],
                 label_visibility="collapsed",
             )
 
-            if main_area == "About DPAS":
-                page = "1 · About DPAS"
+            if main_area == "About DECIDE-Teach":
+                page = "1 · About DECIDE-Teach"
 
             elif main_area == "A · Submit New Lesson":
                 if st.session_state.get("viewing_saved_lesson"):
@@ -945,7 +945,7 @@ with st.sidebar:
 
 # ---------- PUBLIC ----------
 if not user:
-    if page == "About DPAS":
+    if page == "About DECIDE-Teach":
         render_about()
     else:
         section_header(
@@ -992,7 +992,7 @@ if not user:
 active_role = (profile or {}).get("role") or (user or {}).get("role", "student")
 
 if active_role == "teacher_educator":
-    if page == "About DPAS":
+    if page == "About DECIDE-Teach":
         render_about()
     else:
         section_header(
@@ -1279,7 +1279,7 @@ elif page.startswith("A4"):
     st.markdown("### Submit to your teacher educator / supervisor")
     teachers = teacher_directory()
     if not teachers:
-        st.warning("No teacher educator has registered yet. Ask your supervisor to create a Teacher Educator account in DPAS.")
+        st.warning("No teacher educator has registered yet. Ask your supervisor to create a Teacher Educator account in DECIDE-Teach.")
     else:
         teacher_map = {
             t["id"]: " — ".join(
@@ -1296,13 +1296,13 @@ elif page.startswith("A4"):
         st.info(f"You are submitting this lesson to: **{teacher_map[selected_teacher]}**")
         if st.button("Confirm & Submit for Teacher Review", type="primary", use_container_width=True):
             if submit_self_analysis(selected_teacher):
-                st.success("Submitted successfully. This lesson now appears in your selected teacher educator's DPAS inbox.")
+                st.success("Submitted successfully. This lesson now appears in your selected teacher educator's DECIDE-Teach inbox.")
 
 elif page.startswith("B2"):
     section_header(
         "B2",
         "Pedagogical Analytics & Teacher's Evaluation",
-        "Review the student's context-sensitive self-alignment analysis alongside the teacher educator's independent evaluation.",
+        "Review the student's context-sensitive pedagogical decisions and self-alignment analysis. Teacher-educator evaluation is presented as supporting feedback for reflection and refinement.",
     )
     lesson_id = st.session_state.get("lesson_id")
     if not lesson_id:
@@ -1335,10 +1335,10 @@ elif page.startswith("B2"):
         st.write("**Learner / Context Consideration:**", lesson.get("learner_context", "") or "—")
     st.info(
         "Interpret the alignment judgments below in relation to this lesson context. "
-        "DPAS does not treat any cognitive level, strategy, engagement mode, inclusion choice, or assessment type as universally superior."
+        "DECIDE-Teach does not treat any cognitive level, strategy, engagement mode, inclusion choice, or assessment type as universally superior."
     )
     st.caption(
-        "In DPAS V2, analytics means descriptive and comparative analysis of self-alignment judgments, "
+        "In DECIDE-Teach, analytics means descriptive and comparative analysis of pedagogical decisions and self-alignment judgments, "
         "student–evaluator agreement, feedback, and reflective revision."
     )
 
@@ -1457,7 +1457,7 @@ elif page.startswith("B3"):
     section_header(
         "B3",
         "Reflect & Revise",
-        "Review the teacher educator's verification and use it to reflect on and revise your lesson design.",
+        "Review the feedback in relation to your own pedagogical decisions, then reflect on and refine your lesson design.",
     )
     lesson_id = st.session_state.get("lesson_id")
     if not lesson_id:
@@ -1504,7 +1504,7 @@ elif page.startswith("B3"):
 
         st.markdown("### Your Reflection")
         st.text_area(
-            "What did you learn from comparing your own judgment with the teacher educator's evaluation?",
+            "What did you learn about your own pedagogical decisions after considering the feedback?",
             key="reflection",
             height=130,
         )
@@ -1521,7 +1521,7 @@ elif page.startswith("B4"):
     section_header(
         "B4",
         "Final Report",
-        "View and export the complete submitted lesson, self-alignment analysis, teacher evaluation, and reflective revision.",
+        "View and export the complete submitted lesson, pedagogical decisions, self-alignment analysis, supporting feedback, and reflective revision.",
     )
 
     lesson_id = st.session_state.get("lesson_id")
@@ -1665,7 +1665,7 @@ elif page.startswith("B4"):
         st.download_button(
             "📥 Download Lesson Report (CSV)",
             data=csv,
-            file_name="DPAS_V2_Lesson_Report.csv",
+            file_name="DECIDE_Teach_Lesson_Report.csv",
             mime="text/csv",
             use_container_width=True,
         )
