@@ -7,15 +7,15 @@ import plotly.graph_objects as go
 
 # -------- PAGE CONFIGURATION --------
 st.set_page_config(
-    page_title="DPAS",
+    page_title="CONCORD-Teach",
     page_icon="📊",
     layout="centered"
 )
 
 
 # -------- HEADER --------
-st.title("DILP-LA Pedagogical Analytics System (DPAS)")
-st.caption("A compact pedagogical decision-support dashboard for lesson planning")
+st.title("CONCORD-Teach")
+st.caption("Context-Sensitive Reflective Alignment for Pre-Service Lesson Planning")
 
 photo_path = Path(__file__).parent / "profile_photo.png"
 
@@ -23,7 +23,7 @@ information_column, photo_column = st.columns([3, 1])
 
 with information_column:
     st.markdown("""
-    **DPAS** supports pre-service teachers in examining the coherence of lesson-design
+    **CONCORD-Teach** supports pre-service teachers in examining the coherence of lesson-design
     decisions in relation to the intended learning outcome, lesson purpose, and learner context.
 
     **Developer:** Dr. Meenakshi Dwivedi  
@@ -39,7 +39,7 @@ with photo_column:
         st.warning("Profile photograph not found.")
 
 st.info(
-    "DPAS does not assume that a higher Bloom level, a greater number of strategies, "
+    "CONCORD-Teach does not assume that a higher Bloom level, a greater number of strategies, "
     "collaborative participation, or a particular assessment type is automatically superior. "
     "The focus is on contextual fit and coherence."
 )
@@ -235,7 +235,7 @@ if st.button("Analyze Lesson Alignment", type="primary", use_container_width=Tru
         else:
             st.error(profile_label)
 
-    # Attractive gauge retained from the original dashboard
+    # Visual summary of the self-reported alignment profile
     fig_gauge = go.Figure(
         go.Indicator(
             mode="gauge+number",
@@ -352,7 +352,7 @@ if st.button("Analyze Lesson Alignment", type="primary", use_container_width=Tru
     st.download_button(
         label="📥 Download Lesson Alignment Report (CSV)",
         data=csv,
-        file_name="DPAS_Lesson_Alignment_Report.csv",
+        file_name="CONCORD_Teach_Lesson_Alignment_Report.csv",
         mime="text/csv",
         use_container_width=True
     )
