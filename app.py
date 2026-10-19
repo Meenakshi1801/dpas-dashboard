@@ -12,7 +12,7 @@ import streamlit as st
 
 
 APP_NAME = "CONCORD-Teach"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 APP_SUBTITLE = "A Context-Sensitive Reflective Lesson-Planning Environment"
 
 LESSON_PURPOSES = [
@@ -76,7 +76,9 @@ DIMENSIONS = [
     ),
     (
         "engagement", "Engagement-Mode Appropriateness",
-        "Does the participation arrangement help learners undertake the intended learning activity?",
+        "Examine whether the selected learner-engagement mode supports meaningful participation "
+        "in the planned learning activity. Consider what learners are expected to do and whether "
+        "the participation arrangement is appropriate for the intended learning outcome and classroom context.",
     ),
     (
         "context", "Context/Inclusivity Appropriateness",
@@ -84,7 +86,9 @@ DIMENSIONS = [
     ),
     (
         "assessment", "Outcome–Assessment Alignment",
-        "Will the specific assessment task generate evidence of the intended learning outcome?",
+        "Examine whether the planned assessment task provides appropriate evidence of learners' "
+        "achievement of the intended learning outcome. Consider what learners will demonstrate, "
+        "explain, perform, or produce and how this evidence relates to the expected learning outcome.",
     ),
 ]
 TEXT_FIELDS = [
