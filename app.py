@@ -12,7 +12,7 @@ import streamlit as st
 
 
 APP_NAME = "CONCORD-Teach"
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.2.0"
 APP_SUBTITLE = "A Context-Sensitive Reflective Lesson-Planning Environment"
 
 LESSON_PURPOSES = [
@@ -116,15 +116,28 @@ FIELD_LABELS = {
     **{key: label for key, label in TEXT_FIELDS},
     **{key: label for key, label, _ in CHOICE_FIELDS},
 }
+
+# Each alignment dimension is linked to specific, visible lesson-plan evidence.
+# This is an aid to human reflection, not an algorithmic assessment.
+DIMENSION_EVIDENCE_FIELDS = {
+    "cognitive": ["intended_outcome", "cognitive", "activity"],
+    "strategy": ["intended_outcome", "lesson_purpose", "strategy", "activity", "learner_context"],
+    "engagement": ["engagement", "engagement_plan", "activity", "learner_context"],
+    "context": ["learner_context", "resources", "inclusivity", "support_plan"],
+    "assessment": ["intended_outcome", "assessment", "assessment_evidence"],
+}
 INITIAL_WIDGET_KEYS = (
     ["participant_code", "cycle_number"]
     + [f"initial_{key}" for key in LESSON_FIELDS]
     + [f"judgment_{code}" for code, _, _ in DIMENSIONS]
     + [f"reason_{code}" for code, _, _ in DIMENSIONS]
+    + [f"evidence_{code}" for code, _, _ in DIMENSIONS]
 )
 REVISION_WIDGET_KEYS = (
     [f"revised_{key}" for key in LESSON_FIELDS]
     + ["overall_reflection", "revision_explanation"]
+    + [f"post_judgment_{code}" for code, _, _ in DIMENSIONS]
+    + [f"post_reason_{code}" for code, _, _ in DIMENSIONS]
 )
 
 
@@ -152,6 +165,18 @@ def collect_judgments():
             "dimension": label,
             "judgment": st.session_state.get(f"judgment_{code}", ""),
             "justification": st.session_state.get(f"reason_{code}", "").strip(),
+            "planning_evidence": st.session_state.get(f"evidence_{code}", "").strip(),
+        }
+        for code, label, _ in DIMENSIONS
+    }
+
+
+def collect_reappraisal():
+    return {
+        code: {
+            "dimension": label,
+            "judgment": st.session_state.get(f"post_judgment_{code}", ""),
+            "justification": st.session_state.get(f"post_reason_{code}", "").strip(),
         }
         for code, label, _ in DIMENSIONS
     }
@@ -185,6 +210,11 @@ def validate_initial(participant, cycle, lesson, judgments):
             errors.append(f"Select an appraisal response for '{title}'.")
         if len(result["justification"]) < 20:
             errors.append(f"Justify your response for '{title}' (at least 20 characters).")
+        if len(result["planning_evidence"]) < 20:
+            errors.append(
+                f"Identify specific planning evidence or missing evidence for '{title}' "
+                "(at least 20 characters)."
+            )
     for existing in st.session_state["saved_records"]:
         if existing["participant_code"] == participant and existing["cycle_number"] == cycle:
             errors.append("This plan reference and round are already used in this session. Choose another round or plan reference.")
@@ -224,7 +254,12 @@ def flattened_record(record):
         response = record["judgments"][code]
         flat[f"{label} — self-reported judgment"] = response["judgment"]
         flat[f"{label} — justification"] = response["justification"]
+        flat[f"{label} — referenced planning evidence"] = response.get("planning_evidence", "")
+        later = record.get("reappraisal", {}).get(code, {})
+        flat[f"{label} — after refinement"] = later.get("judgment", "")
+        flat[f"{label} — after refinement explanation"] = later.get("justification", "")
     flat["Overall Reflection"] = record["overall_reflection"]
+    flat["Alignment comparison"] = "Self-reported judgments only; not a lesson-quality score."
     flat["Revision / Retention Explanation"] = record["revision_explanation"]
     flat["Changed Fields"] = "; ".join(record["changed_fields"])
     flat["Number of Changed Fields (descriptive only)"] = len(record["changed_fields"])
@@ -385,12 +420,17 @@ if snapshot is None:
     st.markdown("---")
     st.subheader("3. Context-Sensitive Alignment Appraisal")
     st.caption(
-        "For each relationship, select a statement about your own judgment and provide "
-        "a written justification. 'Cannot yet judge' expresses uncertainty, not low quality."
+        "Examine the related lesson-plan evidence for each relationship, select "
+        "your own alignment judgment and justify it. If evidence is missing, "
+        "identify what is needed. 'Cannot yet judge' is not a low-quality rating."
     )
     for code, label, question in DIMENSIONS:
         st.markdown(f"**{label}**")
         st.write(question)
+        with st.expander("Review linked lesson-planning elements", expanded=False):
+            for field in DIMENSION_EVIDENCE_FIELDS[code]:
+                st.markdown(f"**{FIELD_LABELS[field]}**")
+                st.write(st.session_state.get(f"initial_{field}", "") or "Not yet provided")
         selected = st.radio(
             f"Appraisal for {label}",
             ALIGNMENT_RESPONSES,
@@ -405,6 +445,12 @@ if snapshot is None:
             key=f"reason_{code}",
             placeholder="Link your reasoning to the intended outcome, activity, purpose and learner context.",
             height=95,
+        )
+        st.text_area(
+            f"Specific lesson-plan evidence (or missing information) — {label}",
+            key=f"evidence_{code}",
+            placeholder="Point to a concrete outcome, activity, learner need or assessment task that supports your judgment.",
+            height=75,
         )
 
     if st.button("Review My Alignment Profile", type="primary", use_container_width=True):
@@ -446,6 +492,7 @@ else:
             "Alignment dimension": label,
             "Self-reported judgment": response["judgment"],
             "Your justification": response["justification"],
+            "Planning evidence you identified": response.get("planning_evidence", ""),
         })
     st.dataframe(pd.DataFrame(profile_rows), use_container_width=True, hide_index=True)
     with st.expander("View my original lesson plan", expanded=False):
@@ -515,9 +562,39 @@ else:
                 "reasoned explanation for retaining the original lesson plan."
             )
 
+        st.markdown("---")
+        st.subheader("6. Reappraise the Revised Lesson Plan")
+        st.caption(
+            "Revisit the five relationships using your refined lesson plan. "
+            "These are self-reported judgments—not a score or an external assessment."
+        )
+        for code, label, question in DIMENSIONS:
+            st.markdown(f"**{label}**")
+            st.write(question)
+            with st.expander("Review related elements in my refined plan", expanded=False):
+                for field in DIMENSION_EVIDENCE_FIELDS[code]:
+                    st.markdown(f"**{FIELD_LABELS[field]}**")
+                    st.write(st.session_state.get(f"revised_{field}", "") or "Not yet provided")
+            later_choice = st.radio(
+                f"Reappraisal for {label}",
+                ALIGNMENT_RESPONSES,
+                index=None,
+                key=f"post_judgment_{code}",
+                label_visibility="collapsed",
+            )
+            if later_choice:
+                st.caption(REASONING_PROMPTS[later_choice])
+            st.text_area(
+                f"Explain your reappraisal — {label}",
+                key=f"post_reason_{code}",
+                placeholder="Explain your current judgment, including remaining uncertainty or concerns.",
+                height=75,
+            )
+
         if st.button("Save My Refined Lesson Plan", type="primary", use_container_width=True):
             reflection = st.session_state.get("overall_reflection", "").strip()
             explanation = st.session_state.get("revision_explanation", "").strip()
+            reappraisal = collect_reappraisal()
             errors = []
             if len(reflection) < 25:
                 errors.append("Write an overall reflection of at least 25 characters.")
@@ -529,6 +606,12 @@ else:
                 errors.append("The revised lesson must retain a substantive learning activity.")
             if len(str(revised.get("assessment_evidence") or "").strip()) < 20:
                 errors.append("The revised lesson must specify the assessment evidence.")
+            for code, label, _ in DIMENSIONS:
+                response = reappraisal[code]
+                if response["judgment"] not in ALIGNMENT_RESPONSES:
+                    errors.append(f"Reappraise '{label}' before saving.")
+                if len(response["justification"]) < 20:
+                    errors.append(f"Explain the reappraisal for '{label}' in at least 20 characters.")
             if errors:
                 for error in errors:
                     st.error(error)
@@ -542,6 +625,7 @@ else:
                     "revision_timestamp_utc": timestamp_utc(),
                     "original_lesson": dict(snapshot["lesson"]),
                     "judgments": {k: dict(v) for k, v in snapshot["judgments"].items()},
+                    "reappraisal": {k: dict(v) for k, v in reappraisal.items()},
                     "revised_lesson": dict(revised),
                     "overall_reflection": reflection,
                     "revision_explanation": explanation,
@@ -560,6 +644,21 @@ else:
             "**Changes in this planning round:** "
             + (", ".join(record["changed_fields"]) if record["changed_fields"] else
                "No changes; original choices retained with a written justification.")
+        )
+        st.markdown("#### Your Alignment Judgments: Initial and Revised Plan")
+        comparison_rows = []
+        for code, label, _ in DIMENSIONS:
+            initial_result = record["judgments"][code]["judgment"]
+            revised_result = record.get("reappraisal", {}).get(code, {}).get("judgment", "")
+            comparison_rows.append({
+                "Relationship": label,
+                "Before refinement": initial_result,
+                "After refinement": revised_result,
+            })
+        st.dataframe(pd.DataFrame(comparison_rows), hide_index=True, use_container_width=True)
+        st.caption(
+            "These before-and-after judgments describe your reflections. "
+            "They do not independently establish that the lesson has improved."
         )
         st.download_button(
             "Download My Lesson Plan (CSV)",
