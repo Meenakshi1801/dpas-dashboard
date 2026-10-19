@@ -12,7 +12,7 @@ import streamlit as st
 
 
 APP_NAME = "CONCORD-Teach"
-APP_VERSION = "1.1.0-pilot"
+APP_VERSION = "1.1.1"
 APP_SUBTITLE = "A Context-Sensitive Reflective Lesson-Planning Environment"
 
 LESSON_PURPOSES = [
@@ -160,9 +160,9 @@ def collect_judgments():
 def validate_initial(participant, cycle, lesson, judgments):
     errors = []
     if not re.fullmatch(r"[A-Za-z0-9_-]{3,24}", participant or ""):
-        errors.append("Enter a pseudonymous participant code of 3–24 letters, digits, hyphens or underscores.")
+        errors.append("Use a plan reference of 3–24 letters, digits, hyphens or underscores.")
     if cycle not in (1, 2, 3):
-        errors.append("Select intervention cycle 1, 2 or 3.")
+        errors.append("Select a planning round (1, 2 or 3).")
     mandatory_text = {
         "topic": 3,
         "class_level": 1,
@@ -187,7 +187,7 @@ def validate_initial(participant, cycle, lesson, judgments):
             errors.append(f"Justify your response for '{title}' (at least 20 characters).")
     for existing in st.session_state["saved_records"]:
         if existing["participant_code"] == participant and existing["cycle_number"] == cycle:
-            errors.append("This participant and cycle are already recorded in this browser session. Select a different cycle or participant.")
+            errors.append("This plan reference and round are already used in this session. Choose another round or plan reference.")
             break
     return errors
 
@@ -210,8 +210,8 @@ def changes_between(before, after):
 def flattened_record(record):
     flat = {
         "App Version": record["app_version"],
-        "Participant Code": record["participant_code"],
-        "Intervention Cycle": record["cycle_number"],
+        "Plan Reference": record["participant_code"],
+        "Planning Round": record["cycle_number"],
         "Lesson Record ID": record["lesson_id"],
         "Initial Plan Timestamp UTC": record["initial_timestamp_utc"],
         "Revision Timestamp UTC": record["revision_timestamp_utc"],
@@ -251,10 +251,12 @@ def reset_lesson(next_cycle=False):
     st.session_state["initial_snapshot"] = None
     st.session_state["saved_current"] = False
     st.session_state["revision_seeded"] = False
-    if next_cycle:
+    if next_cycle and previous_cycle in (1, 2):
         st.session_state["participant_code"] = previous_code
-        if previous_cycle in (1, 2):
-            st.session_state["cycle_number"] = previous_cycle + 1
+        st.session_state["cycle_number"] = previous_cycle + 1
+    else:
+        st.session_state["participant_code"] = f"PLAN-{uuid.uuid4().hex[:8].upper()}"
+        st.session_state["cycle_number"] = 1
 
 
 st.set_page_config(
@@ -266,6 +268,8 @@ st.session_state.setdefault("saved_records", [])
 st.session_state.setdefault("initial_snapshot", None)
 st.session_state.setdefault("saved_current", False)
 st.session_state.setdefault("revision_seeded", False)
+st.session_state.setdefault("participant_code", f"PLAN-{uuid.uuid4().hex[:8].upper()}")
+st.session_state.setdefault("cycle_number", 1)
 
 st.title(APP_NAME)
 st.caption(APP_SUBTITLE)
@@ -295,36 +299,28 @@ st.info(
     "outcome, lesson purpose, learner needs and teaching context."
 )
 st.caption(
-    f"{APP_VERSION} · Pilot implementation. Self-reported judgments are formative, "
-    "not objective measures of lesson-plan quality or teaching performance."
-)
-st.warning(
-    "**Research-data limitation:** This prototype retains completed records only "
-    "in the current browser session. It does not yet have secure, persistent "
-    "research storage, participant authentication or server-side access controls. "
-    "Download a copy before closing or refreshing your session. Do not enter "
-    "participant names or other identifying information. Do not use this build "
-    "for the main experiment until its data-management process has been approved and tested."
+    "Your lesson plans are held only during this session and may be lost if you close "
+    "or reload the app. Download your completed plan to keep a copy. Avoid entering "
+    "personal or identifying details about learners."
 )
 
 snapshot = st.session_state["initial_snapshot"]
 
 if snapshot is None:
     st.markdown("---")
-    st.subheader("1. Research Record and Lesson Context")
-    st.text_input(
-        "Pseudonymous Participant Code",
-        key="participant_code",
-        placeholder="e.g., CT-P001 (not a student's name)",
-        help="Use an approved coded identifier. Avoid names, emails or enrollment numbers.",
-    )
-    st.selectbox(
-        "Intervention Cycle",
-        options=[1, 2, 3],
-        index=None,
-        key="cycle_number",
-        placeholder="Select a cycle",
-    )
+    st.subheader("1. Lesson Context")
+    with st.expander("Optional plan details", expanded=False):
+        st.text_input(
+            "Plan reference",
+            key="participant_code",
+            help="An anonymous reference is generated for you; edit it if you wish to organise your plans.",
+        )
+        st.selectbox(
+            "Planning round",
+            options=[1, 2, 3],
+            key="cycle_number",
+            help="Use another round when you want to revisit your lesson planning.",
+        )
     st.text_input("Subject and Lesson Topic", key="initial_topic")
     st.text_input("Class / Grade / Stage", key="initial_class_level")
     st.text_area(
@@ -354,7 +350,7 @@ if snapshot is None:
     )
 
     st.markdown("---")
-    st.subheader("2. Pedagogical Choices and Substantive Lesson Plan")
+    st.subheader("2. Pedagogical Choices and Lesson Plan")
     st.caption("Choose pedagogical approaches and describe what will actually happen in the lesson.")
     for key, label, options in CHOICE_FIELDS:
         st.selectbox(label, options, index=None, key=f"initial_{key}", placeholder="Select an option")
@@ -408,7 +404,7 @@ if snapshot is None:
             height=95,
         )
 
-    if st.button("Generate Profile and Freeze Initial Plan", type="primary", use_container_width=True):
+    if st.button("Review My Alignment Profile", type="primary", use_container_width=True):
         participant = st.session_state.get("participant_code", "").strip()
         cycle = st.session_state.get("cycle_number")
         lesson = collect_initial_lesson()
@@ -433,13 +429,12 @@ else:
     st.markdown("---")
     st.subheader("4. Self-Reported Alignment Profile")
     st.caption(
-        f"Participant: {snapshot['participant_code']}  ·  "
-        f"Cycle: {snapshot['cycle_number']}  ·  "
-        f"Lesson record: {snapshot['lesson_id']}"
+        f"Plan reference: {snapshot['participant_code']}  ·  "
+        f"Planning round: {snapshot['cycle_number']}"
     )
     st.info(
-        "This profile describes your own judgments. It is not a numerical score, "
-        "an expert evaluation, a grade or an independent measure of lesson quality."
+        "This profile summarises your own alignment judgments to support reflection "
+        "and improvement. It is not an external grade or evaluation."
     )
     profile_rows = []
     for code, label, _ in DIMENSIONS:
@@ -450,7 +445,7 @@ else:
             "Your justification": response["justification"],
         })
     st.dataframe(pd.DataFrame(profile_rows), use_container_width=True, hide_index=True)
-    with st.expander("View the original (frozen) lesson plan", expanded=False):
+    with st.expander("View my original lesson plan", expanded=False):
         for key in LESSON_FIELDS:
             st.markdown(f"**{FIELD_LABELS[key]}:** {snapshot['lesson'].get(key, '')}")
 
@@ -517,7 +512,7 @@ else:
                 "reasoned explanation for retaining the original lesson plan."
             )
 
-        if st.button("Save Final Reflection and Revision Record", type="primary", use_container_width=True):
+        if st.button("Save My Refined Lesson Plan", type="primary", use_container_width=True):
             reflection = st.session_state.get("overall_reflection", "").strip()
             explanation = st.session_state.get("revision_explanation", "").strip()
             errors = []
@@ -554,36 +549,36 @@ else:
                 st.rerun()
     else:
         st.success(
-            "This lesson's original plan, alignment justifications, reflection "
-            "and revised plan have been recorded in the current browser session."
+            "Your lesson plan and reflections are ready to download. "
+            "Save a copy before leaving this page."
         )
         record = st.session_state["saved_records"][-1]
         st.write(
-            "**Changes in this cycle:** "
+            "**Changes in this planning round:** "
             + (", ".join(record["changed_fields"]) if record["changed_fields"] else
                "No changes; original choices retained with a written justification.")
         )
         st.download_button(
-            "Download This Lesson Record (CSV)",
+            "Download My Lesson Plan (CSV)",
             data=export_csv([record]),
-            file_name=f"CONCORD_Teach_{record['participant_code']}_Cycle_{record['cycle_number']}.csv",
+            file_name=f"CONCORD_Teach_{record['participant_code']}_Round_{record['cycle_number']}.csv",
             mime="text/csv",
             use_container_width=True,
         )
-        if st.button("Start Next Cycle / New Lesson", use_container_width=True):
+        if st.button("Plan Another Lesson / Next Round", use_container_width=True):
             reset_lesson(next_cycle=True)
             st.rerun()
 
 st.markdown("---")
-st.subheader("Session Research Records")
+st.subheader("My Completed Lesson Plans")
 records = st.session_state["saved_records"]
 st.write(f"**Completed lessons in this browser session:** {len(records)}")
 if records:
     st.dataframe(
         pd.DataFrame([
             {
-                "Participant Code": record["participant_code"],
-                "Cycle": record["cycle_number"],
+                "Plan Reference": record["participant_code"],
+                "Planning Round": record["cycle_number"],
                 "Lesson ID": record["lesson_id"],
                 "Completed (UTC)": record["revision_timestamp_utc"],
             }
@@ -593,21 +588,17 @@ if records:
         use_container_width=True,
     )
     st.download_button(
-        "Download All Completed Session Records (CSV)",
+        "Download All My Lesson Plans (CSV)",
         data=export_csv(records),
-        file_name="CONCORD_Teach_Session_Records.csv",
+        file_name="CONCORD_Teach_My_Lesson_Plans.csv",
         mime="text/csv",
         use_container_width=True,
     )
     st.caption(
-        "The exported CSV includes the complete initial and revised lesson plans, "
-        "five categorical judgments and explanations, reflection, timestamps, "
-        "and app version. Store it according to your institution's approved research-data plan."
+        "Your download includes the original and revised plans, alignment notes "
+        "and reflections. Keep the file somewhere safe for later use."
     )
 else:
-    st.caption("No completed records yet. Draft inputs are not persisted or stored on a server.")
+    st.caption("Your completed lesson plans will appear here for download.")
 
-st.caption(
-    "Research boundary: independent lesson-plan quality ratings, independent teaching "
-    "observations, and pre/post assessments must be conducted outside this formative application."
-)
+st.caption("CONCORD-Teach · Reflective planning, alignment and lesson refinement.")
