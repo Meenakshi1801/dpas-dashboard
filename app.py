@@ -353,6 +353,9 @@ if snapshot is None:
     st.subheader("2. Pedagogical Choices and Lesson Plan")
     st.caption("Choose pedagogical approaches and describe what will actually happen in the lesson.")
     for key, label, options in CHOICE_FIELDS:
+        # Lesson Purpose has already been displayed in Section 1.
+        if key == "lesson_purpose":
+            continue
         st.selectbox(label, options, index=None, key=f"initial_{key}", placeholder="Select an option")
     st.text_area(
         "Planned Learning Activity and Procedure",
