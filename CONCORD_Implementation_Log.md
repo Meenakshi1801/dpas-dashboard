@@ -66,3 +66,15 @@ Expert content appraisal (seven experts, 36 items) concerned the **proposed conc
 - Main-study deployment still requires secure server-side storage, restricted access, reliable recovery, approved retention policies, end-to-end testing and usability pilot. No data persistence should be implied by the public UI.
 
 **Code backup:** `concord-teach-pre-evidence-and-reappraisal-2026-10-19`.
+
+## 19 October 2026: Targeted expert-requested language refinement (version 1.2.1)
+
+**Source of change:** Supplementary expert validation items G03 and G05. Experts requested clarification of instructional language rather than a conceptual redesign.
+
+- **G03 — Engagement-Mode Appropriateness:** Replaced the short prompt with guidance directing the learner to explain whether the engagement mode supports meaningful participation in the planned learning activity, what learners will actually do, and how the arrangement fits the intended learning outcome and classroom context.
+- **G05 — Outcome–Assessment Alignment:** Replaced the short prompt with guidance directing the learner to consider whether the assessment task provides appropriate evidence of achieving the intended learning outcome, including what learners will demonstrate, explain, perform, or produce and how that evidence relates to the outcome.
+- **Scope:** Text-only changes to the corresponding `DIMENSIONS` prompts in `app.py` plus the version identifier (`1.2.0` → `1.2.1`). No dimension, user response option, algorithm, scoring rule, storage field, or conceptual framework was changed.
+- **Historical evidence:** Original and supplementary expert ratings, including G05's below-criterion clarity result, are preserved as originally submitted. Updated text has **not yet** been rated or re-confirmed by experts; any such confirmation should be documented as a separate subsequent activity.
+- **Follow-up:** Verify that both prompts display correctly in the live interface and ask experts to confirm the revised language when feasible.
+
+**Safety backup branch:** `concord-teach-before-g03-g05-language-update-2026-10-19`.
