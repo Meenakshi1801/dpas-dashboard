@@ -41,3 +41,28 @@ This log records implementation responses to the seven-expert appraisal and the 
 
 ## Reporting boundary
 Expert content appraisal (seven experts, 36 items) concerned the **proposed conceptual and design specification**. This log records a software implementation response; it does not imply that experts tested the revised running software or that any empirical outcomes have improved.
+
+## October 2026: Digital affordance and distinctiveness revision (version 1.2.0)
+**Purpose.** To distinguish the intervention from static form completion and paper-based lesson-plan rating without claiming that digital media are intrinsically superior.
+
+**Implemented in app.py:**
+1. Each of the five alignment judgments now displays a dimension-specific, dynamically assembled set of the user's own lesson-planning fields (outcome, context, activity, strategy, support, or assessment evidence).
+2. The user must cite a specific piece of planning evidence, or specify information that is still missing, in addition to explaining each judgment. Missing evidence is not coded as low quality.
+3. After writing and reviewing the revised lesson, users make a fresh categorical appraisal of all five dimensions and explain each judgment.
+4. The final screen and CSV export display both the original and revised self-reported judgments. The comparison is intentionally **not** a percentage, automatic quality score, or independently rated improvement.
+5. The pre-/post-refinement explanations, cited planning evidence, original lesson and revised lesson are stored together in a session record.
+
+**Claims supported by the implementation, subject to testing:**
+- The interface supports iterative evidence-linked reflection and traceable self-reappraisal within one digital learning workflow.
+- No automated semantic evaluation, objective alignment detection, AI scoring, adaptive sequencing algorithm, or permanent per-user storage is implemented. The application's response-contingent prompts are predetermined guidance, not intelligent tutoring.
+- A sufficiently structured paper-based tool could also support many of these same thinking processes. Digital added value must be tested rather than presumed.
+
+**Research implications:**
+- The seven-expert appraisal predates these additional interactive features. Seek supplementary expert review of the five evidence mappings, post-revision appraisal prompts, and resulting conceptual claims.
+- Preserve a versioned lesson example and screenshots so experts can inspect actual behaviour.
+- If the control group only uses unstructured paper planning, the experiment estimates the effect of the **entire CONCORD-Teach intervention package** versus usual planning. It cannot isolate the effect of the digital delivery medium.
+- To test digital added value separately, a paper comparator with matched reflection prompts and instructional exposure, or an additional comparative condition, would be required.
+- Maintain independent raters for lesson quality and teaching performance; use the self-appraisal trail as formative/process data only.
+- Main-study deployment still requires secure server-side storage, restricted access, reliable recovery, approved retention policies, end-to-end testing and usability pilot. No data persistence should be implied by the public UI.
+
+**Code backup:** `concord-teach-pre-evidence-and-reappraisal-2026-10-19`.
